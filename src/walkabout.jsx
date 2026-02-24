@@ -1,0 +1,1126 @@
+import { useState, useEffect, useCallback, useRef } from "react";
+
+const PHASES = {
+  TITLE: "title",
+  DISTANCE: "distance",
+  BACKPACK: "backpack",
+  FIRSTAID: "firstaid",
+  HIKING: "hiking",
+  SCENARIO: "scenario",
+  RESULT: "result",
+  FINISH: "finish",
+};
+
+const CUB_SIX = [
+  { id: "firstaid_kit", name: "First-Aid Kit", icon: "🩹", desc: "Bandages, moleskin, and supplies for minor injuries", essential: true, type: "cub6" },
+  { id: "water_bottle", name: "Water Bottle", icon: "💧", desc: "Filled and ready to keep you hydrated", essential: true, type: "cub6" },
+  { id: "flashlight", name: "Flashlight", icon: "🔦", desc: "For emergencies and unexpected darkness", essential: true, type: "cub6" },
+  { id: "trail_food", name: "Trail Food", icon: "🥜", desc: "Snacks to keep your energy up", essential: true, type: "cub6" },
+  { id: "sunscreen", name: "Sun Protection", icon: "🧴", desc: "Sunscreen to protect your skin", essential: true, type: "cub6" },
+  { id: "whistle", name: "Whistle", icon: "📯", desc: "Three blasts = international call for help", essential: true, type: "cub6" },
+];
+
+const BSA_TEN_EXTRA = [
+  { id: "map_compass", name: "Map & Compass", icon: "🧭", desc: "Navigation tools to find your way", essential: false, type: "bsa10" },
+  { id: "pocketknife", name: "Pocketknife", icon: "🔪", desc: "A multi-tool for various needs", essential: false, type: "bsa10" },
+  { id: "rain_gear", name: "Rain Gear", icon: "🧥", desc: "Stay dry if the weather changes", essential: false, type: "bsa10" },
+  { id: "extra_clothing", name: "Extra Clothing", icon: "👕", desc: "Layers for changing conditions", essential: false, type: "bsa10" },
+];
+
+const DECOY_ITEMS = [
+  { id: "video_game", name: "Video Game", icon: "🎮", desc: "Fun but not useful on the trail!", essential: false, type: "decoy" },
+  { id: "pillow", name: "Pillow", icon: "🛏️", desc: "Comfy but too bulky for a hike", essential: false, type: "decoy" },
+  { id: "soccer_ball", name: "Soccer Ball", icon: "⚽", desc: "Great for the field, not the trail", essential: false, type: "decoy" },
+  { id: "stuffed_animal", name: "Stuffed Animal", icon: "🧸", desc: "Cuddly but not trail gear", essential: false, type: "decoy" },
+  { id: "umbrella", name: "Beach Umbrella", icon: "⛱️", desc: "Way too big for a backpack", essential: false, type: "decoy" },
+];
+
+const FIRSTAID_ITEMS = [
+  { id: "bandages", name: "Adhesive Bandages", icon: "🩹", desc: "For cuts, scrapes, and blisters" },
+  { id: "moleskin", name: "Moleskin", icon: "🦶", desc: "Prevents and treats blisters" },
+  { id: "gauze", name: "Gauze Pads", icon: "🟩", desc: "For larger wounds and padding" },
+  { id: "ace_bandage", name: "Elastic Bandage", icon: "🔄", desc: "Wraps sprains and supports joints" },
+  { id: "antibiotic", name: "Antibiotic Ointment", icon: "💊", desc: "Prevents infection in wounds" },
+  { id: "aloe_vera", name: "Aloe Vera Gel", icon: "🌿", desc: "Soothes sunburns and skin irritation" },
+  { id: "cold_pack", name: "Instant Cold Pack", icon: "🧊", desc: "Reduces swelling and pain" },
+  { id: "electrolytes", name: "Electrolyte Packets", icon: "⚡", desc: "Replenishes salts lost from sweating" },
+  { id: "antiseptic_wipes", name: "Antiseptic Wipes", icon: "🧻", desc: "Clean wounds before bandaging" },
+  { id: "tweezers", name: "Tweezers", icon: "🔧", desc: "Removes splinters and ticks" },
+  { id: "medical_tape", name: "Medical Tape", icon: "📏", desc: "Secures bandages and gauze" },
+  { id: "insect_repellent", name: "Insect Repellent", icon: "🦟", desc: "Keeps bugs away" },
+];
+
+const DECOY_FIRSTAID = [
+  { id: "candy", name: "Bag of Candy", icon: "🍬", desc: "Sweet but not medical" },
+  { id: "rubber_duck", name: "Rubber Duck", icon: "🦆", desc: "Good for baths, not hikes" },
+];
+
+const ALL_BACKPACK = [...CUB_SIX, ...BSA_TEN_EXTRA, ...DECOY_ITEMS];
+const ALL_FIRSTAID = [...FIRSTAID_ITEMS, ...DECOY_FIRSTAID];
+
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Scenarios from Req 5 plus additional hiking encounters
+const SCENARIOS = [
+  {
+    id: "blister",
+    title: "Blister Alert!",
+    emoji: "🦶",
+    description: "After walking for a while, you feel a hot spot on your heel. It's turning into a painful blister! What do you use?",
+    bestItems: ["moleskin", "bandages"],
+    goodItems: ["gauze", "medical_tape"],
+    teaches: "For blisters: Clean the area, apply moleskin around the blister to reduce friction, and cover with a bandage. Never pop a blister — it protects the skin underneath!",
+    category: "req5",
+  },
+  {
+    id: "sprain",
+    title: "Twisted Ankle!",
+    emoji: "🏥",
+    description: "A scout in your group steps on a loose rock and twists their ankle! It's swelling up. What do you use?",
+    bestItems: ["ace_bandage", "cold_pack"],
+    goodItems: ["gauze", "medical_tape"],
+    teaches: "For sprains, remember R.I.C.E.: Rest the ankle, apply Ice (cold pack) to reduce swelling, Compress with an elastic bandage, and Elevate the foot. Don't walk on it!",
+    category: "req5",
+  },
+  {
+    id: "sunburn",
+    title: "Sunburn!",
+    emoji: "☀️",
+    description: "You forgot to reapply sunscreen and your shoulders are turning bright red! The sun is really strong today. What do you use?",
+    bestItems: ["aloe_vera", "sunscreen"],
+    goodItems: ["water_bottle", "extra_clothing"],
+    teaches: "For sunburn: Apply aloe vera gel to soothe the burn. Cover up with extra clothing. Drink extra water — sunburn increases dehydration. Prevention is key: apply sunscreen every 2 hours!",
+    category: "req5",
+  },
+  {
+    id: "dehydration",
+    title: "Feeling Dizzy!",
+    emoji: "🥵",
+    description: "It's a hot day and a scout says they feel dizzy, tired, and their mouth is dry. They have a headache too. Signs of dehydration! What do you use?",
+    bestItems: ["water_bottle", "electrolytes"],
+    goodItems: ["trail_food", "cold_pack"],
+    teaches: "For dehydration: Have them drink water with electrolytes in small sips. Rest in shade. Cool them down. Watch for heat exhaustion signs: nausea, heavy sweating, fast heartbeat. If symptoms worsen, call for help!",
+    category: "req5",
+  },
+  {
+    id: "heat_illness",
+    title: "Heat Exhaustion!",
+    emoji: "🌡️",
+    description: "A scout is sweating a LOT, feels nauseous, and looks pale. This could be heat exhaustion — a serious condition! What do you use?",
+    bestItems: ["water_bottle", "cold_pack", "electrolytes"],
+    goodItems: ["whistle", "extra_clothing"],
+    teaches: "For heat illness: Move to shade immediately. Remove extra layers. Apply cold packs to neck and wrists. Give small sips of water with electrolytes. Fan them to cool down. If they stop sweating or seem confused, that's heat STROKE — call 911 immediately!",
+    category: "req5",
+  },
+  {
+    id: "cut",
+    title: "Trail Scrape!",
+    emoji: "🩸",
+    description: "You slipped on a muddy section of the trail and scraped your knee on a rock. It's bleeding a little. What do you use?",
+    bestItems: ["antiseptic_wipes", "bandages", "antibiotic"],
+    goodItems: ["gauze", "medical_tape"],
+    teaches: "For cuts and scrapes: Clean the wound with antiseptic wipes, apply antibiotic ointment to prevent infection, then cover with a bandage. Change the bandage if it gets dirty or wet.",
+    category: "bonus",
+  },
+  {
+    id: "lost",
+    title: "Which Way?",
+    emoji: "🌲",
+    description: "The trail splits and neither path is clearly marked. Your group isn't sure which way leads back to the trailhead. What do you use?",
+    bestItems: ["map_compass", "whistle"],
+    goodItems: ["flashlight"],
+    teaches: "If lost: STOP — Sit down, Think, Observe, Plan. Use your map and compass to orient yourself. Blow your whistle: 3 blasts is the universal signal for help. Stay together as a group. If you can't find the trail, stay put and signal for help.",
+    category: "bonus",
+  },
+  {
+    id: "dark",
+    title: "Getting Dark!",
+    emoji: "🌙",
+    description: "The hike took longer than expected and the sun is going down. The trail is getting hard to see. What do you use?",
+    bestItems: ["flashlight"],
+    goodItems: ["whistle", "map_compass", "extra_clothing"],
+    teaches: "Always plan your hike so you return before dark. If caught out: use your flashlight to see the trail. Stay together. Put on extra layers as temperature drops. If needed, use your whistle to signal for help. This is why we always carry a flashlight — even on day hikes!",
+    category: "bonus",
+  },
+  {
+    id: "rain",
+    title: "Sudden Downpour!",
+    emoji: "🌧️",
+    description: "Dark clouds rolled in fast and now it's pouring rain! Everyone is getting soaked. What do you use?",
+    bestItems: ["rain_gear"],
+    goodItems: ["extra_clothing", "flashlight", "trail_food"],
+    teaches: "Check the weather before every hike! If caught in rain: put on rain gear immediately. Hypothermia can happen even in summer if you're wet and cold. Seek shelter if there's lightning — avoid tall trees and open fields. Wait 30 minutes after the last thunder before continuing.",
+    category: "bonus",
+  },
+  {
+    id: "low_energy",
+    title: "Bonking!",
+    emoji: "😫",
+    description: "You've been hiking a while and suddenly feel weak, shaky, and can't focus. Your body is running out of fuel! What do you use?",
+    bestItems: ["trail_food", "water_bottle"],
+    goodItems: ["electrolytes"],
+    teaches: "Your body needs fuel to hike! Eat trail food regularly — don't wait until you're starving. Combine it with water. Good trail foods include nuts, dried fruit, granola bars, and trail mix. Eating small amounts often is better than one big meal.",
+    category: "bonus",
+  },
+  {
+    id: "splinter",
+    title: "Ouch, Splinter!",
+    emoji: "🪵",
+    description: "You grabbed a wooden railing and got a big splinter stuck in your palm. It hurts! What do you use?",
+    bestItems: ["tweezers", "antiseptic_wipes", "bandages"],
+    goodItems: ["antibiotic"],
+    teaches: "For splinters: Use tweezers to gently pull it out in the same direction it went in. Clean the area with antiseptic wipes, apply antibiotic ointment, and cover with a bandage. If a splinter is deep or won't come out, see a doctor.",
+    category: "bonus",
+  },
+  {
+    id: "bug_bites",
+    title: "Bug Attack!",
+    emoji: "🦟",
+    description: "Mosquitoes are swarming! You're getting bitten all over. One bite is already swelling and itching badly. What do you use?",
+    bestItems: ["insect_repellent", "antiseptic_wipes"],
+    goodItems: ["aloe_vera", "cold_pack"],
+    teaches: "Prevention is best: apply insect repellent before hitting the trail. For bites: don't scratch! Clean with antiseptic wipes. A cold pack reduces swelling. Watch for signs of allergic reaction: extreme swelling, difficulty breathing, or dizziness — if these occur, call 911.",
+    category: "bonus",
+  },
+  // Gear scenarios (6 essentials & 10 essentials)
+  {
+    id: "hungry",
+    title: "Rumbling Stomach!",
+    emoji: "🍽️",
+    description: "You've been hiking for over an hour and your stomach is growling loudly. You're feeling weak and grumpy. Time for fuel!",
+    bestItems: ["trail_food", "water_bottle"],
+    goodItems: ["electrolytes"],
+    teaches: "Trail food keeps your energy up on long hikes. Pack high-energy snacks like trail mix, granola bars, and dried fruit. Eat small amounts regularly instead of waiting until you're starving. Always pair food with water!",
+    category: "gear",
+  },
+  {
+    id: "thirsty",
+    title: "Water Check!",
+    emoji: "💧",
+    description: "A scout leader calls for a water break. You realize you haven't had a drink in a long time and your lips are dry. Stay hydrated!",
+    bestItems: ["water_bottle"],
+    goodItems: ["electrolytes", "trail_food"],
+    teaches: "Drink water BEFORE you feel thirsty — by the time you're thirsty, you're already dehydrating. Take small sips every 15-20 minutes. On hot days, you need even more water. This is why a filled water bottle is one of the Cub Scout 6 Essentials!",
+    category: "gear",
+  },
+  {
+    id: "sun_exposure",
+    title: "Sunny Ridge!",
+    emoji: "🌞",
+    description: "The trail opens onto a ridge with no shade. The sun is beating down and you can feel your skin getting hot. Time for protection!",
+    bestItems: ["sunscreen", "water_bottle"],
+    goodItems: ["extra_clothing", "trail_food"],
+    teaches: "Apply sunscreen every 2 hours, and more often if sweating. Wear a hat and light-colored clothing. Seek shade for breaks. Sunburn isn't just painful — it increases your risk of heat illness too. Prevention is always easier than treatment!",
+    category: "gear",
+  },
+  {
+    id: "separated",
+    title: "Where's the Group?",
+    emoji: "😰",
+    description: "You stopped to look at a cool rock and when you look up, you can't see your den anymore! The trail forks ahead. What do you do?",
+    bestItems: ["whistle"],
+    goodItems: ["flashlight", "map_compass"],
+    teaches: "If separated from your group: STOP! Stay where you are. Blow your whistle — three blasts is the universal signal for help. Your group will hear it and come find you. Never wander off looking for them. This is why every scout carries a whistle!",
+    category: "gear",
+  },
+  {
+    id: "wrong_turn",
+    title: "Dead End Trail!",
+    emoji: "🗺️",
+    description: "The path you've been following ends at a cliff overlook. This isn't the right trail! You need to figure out where you are and get back on track.",
+    bestItems: ["map_compass"],
+    goodItems: ["whistle", "flashlight"],
+    teaches: "Always carry a map and compass and know how to use them! Before your hike, study the trail map and note landmarks. If lost, use your compass to orient the map. Look for trail markers. If truly lost, stay put and use your whistle to signal for help.",
+    category: "gear",
+  },
+  {
+    id: "cold_wind",
+    title: "Freezing Wind!",
+    emoji: "🌬️",
+    description: "You reach a high point on the trail and a cold wind hits you hard. You're only wearing a t-shirt and starting to shiver!",
+    bestItems: ["extra_clothing", "rain_gear"],
+    goodItems: ["trail_food", "water_bottle"],
+    teaches: "Mountain and trail weather can change fast. Always pack extra layers even on warm days — it can be much colder at higher elevations or when the wind picks up. Layering is key: a base layer, insulating layer, and wind/rain layer. Hypothermia can happen even in summer!",
+    category: "gear",
+  },
+  {
+    id: "muddy_trail",
+    title: "Mud Pit!",
+    emoji: "🟤",
+    description: "Recent rain has turned a section of trail into deep, slippery mud. It's getting dark and hard to see where to step safely.",
+    bestItems: ["flashlight"],
+    goodItems: ["map_compass", "extra_clothing", "whistle"],
+    teaches: "Your flashlight isn't just for nighttime — it helps you see in dark forest sections, caves, and shady areas. Always check batteries before a hike. A headlamp is even better since it keeps your hands free. This is why a flashlight is one of the 6 Essentials!",
+    category: "gear",
+  },
+  {
+    id: "rope_fix",
+    title: "Broken Gear!",
+    emoji: "🔧",
+    description: "Your backpack strap just broke and your pack keeps sliding off your shoulder. You need to fix it on the trail somehow!",
+    bestItems: ["pocketknife"],
+    goodItems: ["medical_tape", "ace_bandage"],
+    teaches: "A pocketknife or multi-tool is incredibly useful on the trail for gear repairs, cutting rope or moleskin, and more. Remember: only use a pocketknife if you've earned your Whittling Chip! Always cut away from yourself and close the blade when not in use.",
+    category: "gear",
+  },
+  {
+    id: "surprise_rain",
+    title: "Storm Rolling In!",
+    emoji: "⛈️",
+    description: "Dark clouds are moving in fast and you hear distant thunder. Fat raindrops are starting to fall. You need to stay dry!",
+    bestItems: ["rain_gear"],
+    goodItems: ["extra_clothing", "flashlight", "map_compass"],
+    teaches: "Always check the weather forecast before hiking! If caught in a storm: put on rain gear immediately. If you hear thunder, seek shelter away from tall trees, ridges, and open fields. Wait 30 minutes after the last thunder before continuing. Staying dry prevents hypothermia.",
+    category: "gear",
+  },
+];
+
+const TRAIL_ART = [
+  "🌲🌳🌲🌳🌲🌿🌲🌳",
+  "🏔️⛰️🌄🗻🏔️⛰️🌄🗻",
+  "🌻🌼🌸🌺🌷🌻🌼🌸",
+  "🦎🐿️🐦🦋🐝🦎🐿️🐦",
+  "🍃🍂🍁🌾🍃🍂🍁🌾",
+  "🌵🏜️🦎☀️🌵🏜️🦎☀️",
+  "💐🌿🌱🌳💐🌿🌱🌳",
+  "🦌🐻🐺🦅🦌🐻🐺🦅",
+];
+
+const HIKE_DISTANCES = [
+  { miles: 1, label: "1 Mile", desc: "A short scout stroll", scenarios: 2, emoji: "🥾" },
+  { miles: 2, label: "2 Miles", desc: "Webelos Walkabout distance!", scenarios: 4, emoji: "🏕️" },
+  { miles: 10, label: "10 Miles", desc: "A real adventure", scenarios: 8, emoji: "⛰️" },
+  { miles: 20, label: "20 Miles", desc: "Eagle-level endurance", scenarios: 12, emoji: "🦅" },
+];
+
+// Retro pixel-style font via Google Fonts
+const FONT_LINK = "https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap";
+
+export default function WebelosWalkabout() {
+  const [phase, setPhase] = useState(PHASES.TITLE);
+  const [distance, setDistance] = useState(null);
+  const [backpack, setBackpack] = useState([]);
+  const [firstAidKit, setFirstAidKit] = useState([]);
+  const [milesTraveled, setMilesTraveled] = useState(0);
+  const [currentScenario, setCurrentScenario] = useState(null);
+  const [selectedItems, setSelectedItems] = useState([]);
+  const [scenarioResult, setScenarioResult] = useState(null);
+  const [scenarioHistory, setScenarioHistory] = useState([]);
+  const [score, setScore] = useState(0);
+  const [scenariosRemaining, setScenarios] = useState([]);
+  const [totalScenarioCount, setTotalScenarioCount] = useState(0);
+  const [scenariosCompleted, setScenariosCompleted] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [trailFrame, setTrailFrame] = useState(0);
+  const [showTeach, setShowTeach] = useState(false);
+  const [shuffledBackpack, setShuffledBackpack] = useState([]);
+  const [shuffledFirstAid, setShuffledFirstAid] = useState([]);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    setShuffledBackpack(shuffleArray(ALL_BACKPACK));
+    setShuffledFirstAid(shuffleArray(ALL_FIRSTAID));
+  }, []);
+
+  // Trail animation
+  useEffect(() => {
+    if (isAnimating) {
+      timerRef.current = setInterval(() => {
+        setTrailFrame((f) => (f + 1) % TRAIL_ART.length);
+      }, 400);
+      const stopTimer = setTimeout(() => {
+        setIsAnimating(false);
+        clearInterval(timerRef.current);
+        triggerNextScenario();
+      }, 2400);
+      return () => {
+        clearInterval(timerRef.current);
+        clearTimeout(stopTimer);
+      };
+    }
+  }, [isAnimating]);
+
+  const triggerNextScenario = useCallback(() => {
+    if (scenariosRemaining.length === 0) {
+      setPhase(PHASES.FINISH);
+      return;
+    }
+    const next = scenariosRemaining[0];
+    setCurrentScenario(next);
+    setScenarios((prev) => prev.slice(1));
+    setSelectedItems([]);
+    setScenarioResult(null);
+    setShowTeach(false);
+    setPhase(PHASES.SCENARIO);
+  }, [scenariosRemaining]);
+
+  const startHike = () => {
+    // Pick scenarios - always include req5, then gear scenarios scale with distance, fill rest with bonus
+    const req5 = shuffleArray(SCENARIOS.filter((s) => s.category === "req5"));
+    const gear = shuffleArray(SCENARIOS.filter((s) => s.category === "gear"));
+    const bonus = shuffleArray(SCENARIOS.filter((s) => s.category === "bonus"));
+    const needed = distance.scenarios;
+
+    let picked = [];
+    // Always start with req5 (up to what fits)
+    const req5Pick = req5.slice(0, Math.min(req5.length, needed));
+    picked.push(...req5Pick);
+
+    // Gear scenarios scale with distance: short hikes get 0-1, long hikes get many
+    const remaining = needed - picked.length;
+    if (remaining > 0) {
+      // Longer hikes = higher ratio of gear scenarios
+      const gearRatio = distance.miles >= 20 ? 0.7 : distance.miles >= 10 ? 0.6 : distance.miles >= 2 ? 0.4 : 0.2;
+      const gearCount = Math.min(Math.round(remaining * gearRatio), gear.length);
+      const bonusCount = Math.min(remaining - gearCount, bonus.length);
+      picked.push(...gear.slice(0, gearCount));
+      picked.push(...bonus.slice(0, bonusCount));
+      // If still short, fill from whichever pool has leftovers
+      if (picked.length < needed) {
+        const usedIds = new Set(picked.map((s) => s.id));
+        const leftovers = [...gear, ...bonus].filter((s) => !usedIds.has(s.id));
+        picked.push(...leftovers.slice(0, needed - picked.length));
+      }
+    }
+    picked = shuffleArray(picked);
+    setScenarios(picked);
+    setTotalScenarioCount(picked.length);
+    setScenariosCompleted(0);
+    setMilesTraveled(0);
+    setScore(0);
+    setScenarioHistory([]);
+    setIsAnimating(true);
+    setPhase(PHASES.HIKING);
+  };
+
+  const toggleBackpack = (id) => {
+    setBackpack((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const toggleFirstAid = (id) => {
+    setFirstAidKit((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const toggleScenarioItem = (id) => {
+    setSelectedItems((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const evaluateScenario = () => {
+    const scenario = currentScenario;
+    const allPlayerItems = [...backpack, ...firstAidKit];
+    const availableSelected = selectedItems.filter((id) => allPlayerItems.includes(id));
+
+    const bestHit = scenario.bestItems.filter((id) => availableSelected.includes(id));
+    const goodHit = scenario.goodItems.filter((id) => availableSelected.includes(id));
+
+    let points = 0;
+    let rating = "";
+    let message = "";
+
+    if (bestHit.length === scenario.bestItems.length) {
+      points = 3;
+      rating = "⭐⭐⭐ Perfect!";
+      message = "You knew exactly what to do! Great first aid skills, Scout!";
+    } else if (bestHit.length > 0) {
+      points = 2;
+      rating = "⭐⭐ Good Job!";
+      message = "You had some of the right items! You're learning well.";
+    } else if (goodHit.length > 0) {
+      points = 1;
+      rating = "⭐ Nice Try!";
+      message = "That could help a little, but there are better options.";
+    } else {
+      points = 0;
+      rating = "Keep Learning!";
+      message = "Not quite the right items, but now you know for next time!";
+    }
+
+    setScore((s) => s + points);
+    setScenariosCompleted((c) => c + 1);
+
+    const milesPerScenario = distance.miles / totalScenarioCount;
+    setMilesTraveled((m) => Math.min(m + milesPerScenario, distance.miles));
+
+    const result = { points, rating, message, scenario };
+    setScenarioResult(result);
+    setScenarioHistory((h) => [...h, { ...result, selected: availableSelected }]);
+    setPhase(PHASES.RESULT);
+  };
+
+  const continueHike = () => {
+    if (scenariosRemaining.length === 0) {
+      setPhase(PHASES.FINISH);
+    } else {
+      setIsAnimating(true);
+      setPhase(PHASES.HIKING);
+    }
+  };
+
+  const getAvailableItemsForScenario = () => {
+    const allItems = [...ALL_BACKPACK, ...ALL_FIRSTAID];
+    const playerItemIds = [...backpack, ...firstAidKit];
+    return allItems.filter((item) => playerItemIds.includes(item.id));
+  };
+
+  const getPackingScore = () => {
+    const hasCub6 = CUB_SIX.every((item) => backpack.includes(item.id));
+    const hasBsa10 = BSA_TEN_EXTRA.every((item) => backpack.includes(item.id));
+    const hasDecoys = DECOY_ITEMS.some((item) => backpack.includes(item.id));
+    return { hasCub6, hasBsa10, hasDecoys };
+  };
+
+  const getFirstAidScore = () => {
+    const goodItems = FIRSTAID_ITEMS.filter((item) => firstAidKit.includes(item.id));
+    const decoyItems = DECOY_FIRSTAID.filter((item) => firstAidKit.includes(item.id));
+    return { goodCount: goodItems.length, decoyCount: decoyItems.length, total: FIRSTAID_ITEMS.length };
+  };
+
+  const maxScore = totalScenarioCount * 3;
+
+  const styles = {
+    app: {
+      fontFamily: "'VT323', monospace",
+      minHeight: "100vh",
+      background: "linear-gradient(180deg, #1a2a0f 0%, #2d4a1c 30%, #1e3510 70%, #0f1a08 100%)",
+      color: "#c8e6a0",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      padding: "20px",
+      imageRendering: "pixelated",
+      position: "relative",
+      overflow: "hidden",
+    },
+    scanlines: {
+      position: "fixed",
+      top: 0, left: 0, right: 0, bottom: 0,
+      background: "repeating-linear-gradient(0deg, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0.15) 1px, transparent 1px, transparent 3px)",
+      pointerEvents: "none",
+      zIndex: 999,
+    },
+    container: {
+      maxWidth: 700,
+      width: "100%",
+      position: "relative",
+      zIndex: 1,
+    },
+    title: {
+      fontFamily: "'Press Start 2P', monospace",
+      fontSize: 20,
+      color: "#ffe066",
+      textAlign: "center",
+      textShadow: "3px 3px 0 #4a3000, -1px -1px 0 #8b6914",
+      lineHeight: 1.6,
+      marginBottom: 8,
+    },
+    subtitle: {
+      fontSize: 22,
+      color: "#a0d468",
+      textAlign: "center",
+      marginBottom: 24,
+    },
+    panel: {
+      background: "rgba(0,0,0,0.5)",
+      border: "3px solid #4a7a2e",
+      borderRadius: 4,
+      padding: 20,
+      marginBottom: 16,
+      boxShadow: "0 0 20px rgba(74,122,46,0.3), inset 0 0 30px rgba(0,0,0,0.3)",
+    },
+    button: {
+      fontFamily: "'Press Start 2P', monospace",
+      fontSize: 11,
+      padding: "14px 24px",
+      background: "linear-gradient(180deg, #5a8a3a 0%, #3a6a1a 100%)",
+      color: "#ffe066",
+      border: "3px solid #7ab44a",
+      borderRadius: 4,
+      cursor: "pointer",
+      textShadow: "1px 1px 0 #2a4a0a",
+      boxShadow: "0 4px 0 #2a4a0a, 0 6px 10px rgba(0,0,0,0.3)",
+      transition: "all 0.1s",
+      display: "inline-block",
+    },
+    buttonDisabled: {
+      opacity: 0.4,
+      cursor: "not-allowed",
+    },
+    buttonHover: {
+      transform: "translateY(2px)",
+      boxShadow: "0 2px 0 #2a4a0a, 0 3px 5px rgba(0,0,0,0.3)",
+    },
+    itemGrid: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+      gap: 10,
+    },
+    itemCard: (selected, type) => ({
+      background: selected
+        ? type === "decoy"
+          ? "rgba(180,60,60,0.4)"
+          : "rgba(74,122,46,0.5)"
+        : "rgba(0,0,0,0.3)",
+      border: `2px solid ${selected ? (type === "decoy" ? "#c44" : "#7ab44a") : "#3a5a2a"}`,
+      borderRadius: 4,
+      padding: "10px 8px",
+      cursor: "pointer",
+      textAlign: "center",
+      transition: "all 0.15s",
+      transform: selected ? "scale(1.03)" : "scale(1)",
+    }),
+    itemIcon: {
+      fontSize: 28,
+      display: "block",
+      marginBottom: 4,
+    },
+    itemName: {
+      fontSize: 16,
+      color: "#ffe066",
+      fontWeight: "bold",
+    },
+    itemDesc: {
+      fontSize: 14,
+      color: "#8ab868",
+      marginTop: 2,
+    },
+    badge: (color) => ({
+      display: "inline-block",
+      padding: "2px 8px",
+      borderRadius: 3,
+      fontSize: 12,
+      fontFamily: "'Press Start 2P', monospace",
+      background: color,
+      color: "#fff",
+      marginBottom: 6,
+    }),
+    progressBar: {
+      width: "100%",
+      height: 20,
+      background: "rgba(0,0,0,0.5)",
+      border: "2px solid #4a7a2e",
+      borderRadius: 3,
+      overflow: "hidden",
+      marginBottom: 12,
+    },
+    progressFill: (pct) => ({
+      width: `${pct}%`,
+      height: "100%",
+      background: "linear-gradient(90deg, #5a8a3a, #7ab44a, #a0d468)",
+      transition: "width 0.5s ease",
+      boxShadow: "0 0 10px rgba(160,212,104,0.5)",
+    }),
+    trailArt: {
+      fontSize: 28,
+      textAlign: "center",
+      padding: "20px 0",
+      letterSpacing: 8,
+      animation: "pulse 0.4s ease-in-out infinite alternate",
+    },
+    scenarioBox: {
+      background: "rgba(180,120,40,0.15)",
+      border: "3px solid #c89030",
+      borderRadius: 4,
+      padding: 20,
+      marginBottom: 16,
+    },
+    teachBox: {
+      background: "rgba(40,80,40,0.3)",
+      border: "2px solid #5a9a3a",
+      borderRadius: 4,
+      padding: 16,
+      marginTop: 12,
+      fontSize: 18,
+      lineHeight: 1.5,
+    },
+    scoreDisplay: {
+      fontFamily: "'Press Start 2P', monospace",
+      fontSize: 14,
+      color: "#ffe066",
+      textAlign: "center",
+    },
+    stars: {
+      fontSize: 32,
+      textAlign: "center",
+      marginBottom: 8,
+    },
+    distanceCard: (selected) => ({
+      background: selected ? "rgba(74,122,46,0.5)" : "rgba(0,0,0,0.3)",
+      border: `3px solid ${selected ? "#ffe066" : "#3a5a2a"}`,
+      borderRadius: 4,
+      padding: 16,
+      cursor: "pointer",
+      textAlign: "center",
+      transition: "all 0.15s",
+    }),
+    flexCenter: {
+      display: "flex",
+      justifyContent: "center",
+      gap: 12,
+      flexWrap: "wrap",
+    },
+    sectionLabel: {
+      fontFamily: "'Press Start 2P', monospace",
+      fontSize: 11,
+      color: "#8ab868",
+      marginBottom: 10,
+      textTransform: "uppercase",
+      letterSpacing: 2,
+    },
+    historyItem: (points) => ({
+      background: points >= 3 ? "rgba(74,122,46,0.3)" : points >= 2 ? "rgba(120,120,40,0.3)" : points >= 1 ? "rgba(180,120,40,0.2)" : "rgba(180,60,60,0.2)",
+      border: "1px solid #3a5a2a",
+      borderRadius: 4,
+      padding: "10px 14px",
+      marginBottom: 8,
+    }),
+  };
+
+  const HoverButton = ({ children, onClick, disabled, style: extraStyle }) => {
+    const [hovered, setHovered] = useState(false);
+    return (
+      <button
+        style={{
+          ...styles.button,
+          ...(disabled ? styles.buttonDisabled : {}),
+          ...(hovered && !disabled ? styles.buttonHover : {}),
+          ...extraStyle,
+        }}
+        onClick={disabled ? undefined : onClick}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        disabled={disabled}
+      >
+        {children}
+      </button>
+    );
+  };
+
+  const renderTitle = () => (
+    <div style={{ textAlign: "center", paddingTop: 40 }}>
+      <div style={{ fontSize: 64, marginBottom: 16 }}>🏕️</div>
+      <h1 style={styles.title}>WEBELOS<br />WALKABOUT</h1>
+      <p style={{ ...styles.subtitle, fontSize: 18, marginBottom: 8 }}>
+        — A Scouting Adventure —
+      </p>
+      <p style={{ fontSize: 20, color: "#8ab868", marginBottom: 32, maxWidth: 500, margin: "0 auto 32px" }}>
+        Pack your gear. Hit the trail. Handle whatever nature throws at you. Learn real first aid skills along the way!
+      </p>
+      <div style={{ fontSize: 20, marginBottom: 32 }}>
+        🌲🌳⛺🌲🏔️🌳🌲🌿🌲🌳
+      </div>
+      <HoverButton onClick={() => setPhase(PHASES.DISTANCE)}>
+        START ADVENTURE
+      </HoverButton>
+      <p style={{ fontSize: 14, color: "#5a8a3a", marginTop: 24 }}>
+        Based on the Webelos Walkabout Adventure Requirements
+      </p>
+    </div>
+  );
+
+  const renderDistance = () => (
+    <div>
+      <h2 style={{ ...styles.title, fontSize: 16 }}>CHOOSE YOUR HIKE</h2>
+      <p style={styles.subtitle}>How far will you go today, Scout?</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 20 }}>
+        {HIKE_DISTANCES.map((d) => (
+          <div
+            key={d.miles}
+            style={styles.distanceCard(distance?.miles === d.miles)}
+            onClick={() => setDistance(d)}
+          >
+            <div style={{ fontSize: 36 }}>{d.emoji}</div>
+            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 14, color: "#ffe066", marginBottom: 4 }}>
+              {d.label}
+            </div>
+            <div style={{ fontSize: 16, color: "#8ab868" }}>{d.desc}</div>
+            <div style={{ fontSize: 14, color: "#5a8a3a", marginTop: 4 }}>
+              {d.scenarios} encounters
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={styles.flexCenter}>
+        <HoverButton onClick={() => setPhase(PHASES.BACKPACK)} disabled={!distance}>
+          PACK YOUR GEAR →
+        </HoverButton>
+      </div>
+    </div>
+  );
+
+  const renderBackpack = () => {
+    const { hasCub6, hasBsa10, hasDecoys } = getPackingScore();
+    return (
+      <div>
+        <h2 style={{ ...styles.title, fontSize: 16 }}>PACK YOUR BACKPACK</h2>
+        <p style={styles.subtitle}>Select the items you want to bring on your hike</p>
+
+        <div style={styles.panel}>
+          <div style={styles.sectionLabel}>🎒 Choose your gear</div>
+          <p style={{ fontSize: 15, color: "#6a9a48", marginBottom: 10 }}>
+            Pick the items you think are essential for a safe hike!
+          </p>
+          <div style={styles.itemGrid}>
+            {shuffledBackpack.map((item) => (
+              <div
+                key={item.id}
+                style={styles.itemCard(backpack.includes(item.id), item.type)}
+                onClick={() => toggleBackpack(item.id)}
+              >
+                <span style={styles.itemIcon}>{item.icon}</span>
+                <div style={styles.itemName}>{item.name}</div>
+                <div style={styles.itemDesc}>{item.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ ...styles.panel, textAlign: "center" }}>
+          {hasCub6 && <div style={styles.badge("#4a7a2e")}>✓ ALL 6 ESSENTIALS</div>}
+          {hasBsa10 && <div style={{ ...styles.badge("#2a6a8a"), marginLeft: 8 }}>✓ ALL 10 ESSENTIALS</div>}
+          {hasDecoys && <div style={{ ...styles.badge("#8a3a2a"), marginLeft: 8 }}>⚠ UNNECESSARY ITEMS</div>}
+          <div style={{ marginTop: 12 }}>
+            <span style={{ fontSize: 18, color: "#8ab868" }}>
+              {backpack.length} items packed
+            </span>
+          </div>
+        </div>
+
+        <div style={styles.flexCenter}>
+          <HoverButton onClick={() => setPhase(PHASES.DISTANCE)} style={{ background: "linear-gradient(180deg, #5a5a5a 0%, #3a3a3a 100%)", borderColor: "#7a7a7a" }}>
+            ← BACK
+          </HoverButton>
+          <HoverButton
+            onClick={() => {
+              if (backpack.includes("firstaid_kit")) {
+                setPhase(PHASES.FIRSTAID);
+              } else {
+                startHike();
+                setPhase(PHASES.HIKING);
+              }
+            }}
+            disabled={backpack.length === 0}
+          >
+            {backpack.includes("firstaid_kit") ? "PACK FIRST AID KIT →" : "HIT THE TRAIL! 🥾"}
+          </HoverButton>
+        </div>
+      </div>
+    );
+  };
+
+  const renderFirstAid = () => {
+    const { goodCount, decoyCount, total } = getFirstAidScore();
+    return (
+      <div>
+        <h2 style={{ ...styles.title, fontSize: 16 }}>PACK YOUR FIRST AID KIT</h2>
+        <p style={styles.subtitle}>What goes in a good hiking first aid kit?</p>
+
+        <div style={styles.panel}>
+          <div style={styles.sectionLabel}>🩹 First Aid Supplies</div>
+          <p style={{ fontSize: 15, color: "#6a9a48", marginBottom: 10 }}>
+            Choose the items for treating blisters, sprains, sunburn, dehydration, and more
+          </p>
+          <div style={styles.itemGrid}>
+            {shuffledFirstAid.map((item) => {
+              const isDecoy = DECOY_FIRSTAID.some((d) => d.id === item.id);
+              return (
+                <div
+                  key={item.id}
+                  style={styles.itemCard(firstAidKit.includes(item.id), isDecoy ? "decoy" : "good")}
+                  onClick={() => toggleFirstAid(item.id)}
+                >
+                  <span style={styles.itemIcon}>{item.icon}</span>
+                  <div style={styles.itemName}>{item.name}</div>
+                  <div style={styles.itemDesc}>{item.desc}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{ ...styles.panel, textAlign: "center" }}>
+          <span style={{ fontSize: 18, color: "#8ab868" }}>
+            {goodCount}/{total} useful items selected
+          </span>
+          {decoyCount > 0 && (
+            <span style={{ fontSize: 16, color: "#c44", marginLeft: 12 }}>
+              {decoyCount} non-medical item(s)!
+            </span>
+          )}
+        </div>
+
+        <div style={styles.flexCenter}>
+          <HoverButton onClick={() => setPhase(PHASES.BACKPACK)} style={{ background: "linear-gradient(180deg, #5a5a5a 0%, #3a3a3a 100%)", borderColor: "#7a7a7a" }}>
+            ← BACK
+          </HoverButton>
+          <HoverButton onClick={startHike} disabled={firstAidKit.length === 0}>
+            HIT THE TRAIL! 🥾
+          </HoverButton>
+        </div>
+      </div>
+    );
+  };
+
+  const renderHiking = () => {
+    const pct = totalScenarioCount > 0 ? (scenariosCompleted / totalScenarioCount) * 100 : 0;
+    return (
+      <div style={{ textAlign: "center", paddingTop: 40 }}>
+        <h2 style={{ ...styles.title, fontSize: 14 }}>ON THE TRAIL...</h2>
+        <div style={{ ...styles.panel, padding: 30 }}>
+          <div style={styles.progressBar}>
+            <div style={styles.progressFill(pct)} />
+          </div>
+          <div style={{ fontSize: 16, color: "#8ab868", marginBottom: 20 }}>
+            {milesTraveled.toFixed(1)} / {distance?.miles} miles
+          </div>
+          <div style={styles.trailArt}>
+            {TRAIL_ART[trailFrame]}
+          </div>
+          <p style={{ fontSize: 22, color: "#c8e6a0", marginTop: 16 }}>
+            {isAnimating ? "Hiking along the trail..." : "Something is happening!"}
+          </p>
+        </div>
+        <style>{`@keyframes pulse { from { opacity: 0.7; } to { opacity: 1; } }`}</style>
+      </div>
+    );
+  };
+
+  const renderScenario = () => {
+    const availableItems = getAvailableItemsForScenario();
+    return (
+      <div>
+        <div style={{ ...styles.panel, marginBottom: 8 }}>
+          <div style={styles.progressBar}>
+            <div style={styles.progressFill((scenariosCompleted / totalScenarioCount) * 100)} />
+          </div>
+          <div style={{ fontSize: 14, color: "#8ab868", textAlign: "center" }}>
+            {milesTraveled.toFixed(1)} / {distance?.miles} miles — Encounter {scenariosCompleted + 1} of {totalScenarioCount}
+          </div>
+        </div>
+
+        <div style={styles.scenarioBox}>
+          <div style={{ fontSize: 48, textAlign: "center", marginBottom: 8 }}>
+            {currentScenario.emoji}
+          </div>
+          <h3 style={{ ...styles.title, fontSize: 14, marginBottom: 8 }}>
+            {currentScenario.title}
+          </h3>
+          <p style={{ fontSize: 20, color: "#e8d8a0", textAlign: "center", lineHeight: 1.4 }}>
+            {currentScenario.description}
+          </p>
+          {currentScenario.category === "req5" && (
+            <div style={{ textAlign: "center", marginTop: 8 }}>
+              <span style={styles.badge("#8a6a1a")}>WALKABOUT REQ 5</span>
+            </div>
+          )}
+          {currentScenario.category === "gear" && (
+            <div style={{ textAlign: "center", marginTop: 8 }}>
+              <span style={styles.badge("#2a6a8a")}>GEAR CHECK</span>
+            </div>
+          )}
+        </div>
+
+        <div style={styles.panel}>
+          <div style={styles.sectionLabel}>🎒 YOUR GEAR — Select items to use</div>
+          <div style={styles.itemGrid}>
+            {availableItems.map((item) => (
+              <div
+                key={item.id}
+                style={{
+                  ...styles.itemCard(selectedItems.includes(item.id), "good"),
+                  border: `2px solid ${selectedItems.includes(item.id) ? "#ffe066" : "#3a5a2a"}`,
+                }}
+                onClick={() => toggleScenarioItem(item.id)}
+              >
+                <span style={styles.itemIcon}>{item.icon}</span>
+                <div style={styles.itemName}>{item.name}</div>
+              </div>
+            ))}
+          </div>
+          {availableItems.length === 0 && (
+            <p style={{ textAlign: "center", color: "#c44", fontSize: 18 }}>
+              You didn't pack any items! You'll have to improvise...
+            </p>
+          )}
+        </div>
+
+        <div style={styles.flexCenter}>
+          <HoverButton onClick={evaluateScenario}>
+            USE SELECTED ITEMS
+          </HoverButton>
+        </div>
+      </div>
+    );
+  };
+
+  const renderResult = () => (
+    <div>
+      <div style={{ ...styles.panel, textAlign: "center" }}>
+        <div style={styles.stars}>{scenarioResult.rating}</div>
+        <p style={{ fontSize: 22, color: "#c8e6a0", marginBottom: 12 }}>
+          {scenarioResult.message}
+        </p>
+        <div style={{ fontSize: 16, color: "#8ab868", marginBottom: 8 }}>
+          Best items were:{" "}
+          {currentScenario.bestItems.map((id) => {
+            const item = [...ALL_BACKPACK, ...ALL_FIRSTAID].find((i) => i.id === id);
+            const had = [...backpack, ...firstAidKit].includes(id);
+            return (
+              <span key={id} style={{ color: had ? "#a0d468" : "#c44", marginRight: 8 }}>
+                {item?.icon} {item?.name} {had ? "✓" : "✗ (not packed)"}
+              </span>
+            );
+          })}
+        </div>
+
+        {!showTeach ? (
+          <button
+            style={{ ...styles.button, fontSize: 10, padding: "8px 16px", marginTop: 8 }}
+            onClick={() => setShowTeach(true)}
+          >
+            📖 LEARN THE FIRST AID
+          </button>
+        ) : (
+          <div style={styles.teachBox}>
+            <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 10, color: "#ffe066", marginBottom: 8 }}>
+              SCOUT KNOWLEDGE:
+            </div>
+            {currentScenario.teaches}
+          </div>
+        )}
+      </div>
+
+      <div style={styles.flexCenter}>
+        <HoverButton onClick={continueHike}>
+          {scenariosRemaining.length === 0 ? "FINISH HIKE 🏁" : "CONTINUE HIKING →"}
+        </HoverButton>
+      </div>
+    </div>
+  );
+
+  const renderFinish = () => {
+    const pct = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+    const { hasCub6, hasBsa10, hasDecoys } = getPackingScore();
+    const { goodCount, total } = getFirstAidScore();
+
+    let rank = "";
+    let rankEmoji = "";
+    if (pct >= 90) { rank = "Trail Master"; rankEmoji = "🦅"; }
+    else if (pct >= 70) { rank = "Prepared Scout"; rankEmoji = "⭐"; }
+    else if (pct >= 50) { rank = "Trail Learner"; rankEmoji = "🌿"; }
+    else { rank = "Tenderfoot"; rankEmoji = "🥾"; }
+
+    return (
+      <div>
+        <div style={{ textAlign: "center", marginBottom: 16 }}>
+          <div style={{ fontSize: 64 }}>🏁</div>
+          <h2 style={{ ...styles.title, fontSize: 16 }}>HIKE COMPLETE!</h2>
+          <p style={styles.subtitle}>
+            You finished your {distance?.miles}-mile hike!
+          </p>
+        </div>
+
+        <div style={{ ...styles.panel, textAlign: "center" }}>
+          <div style={{ fontSize: 48, marginBottom: 8 }}>{rankEmoji}</div>
+          <div style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 16, color: "#ffe066", marginBottom: 12 }}>
+            {rank}
+          </div>
+          <div style={styles.scoreDisplay}>
+            SCORE: {score} / {maxScore} ({pct}%)
+          </div>
+        </div>
+
+        <div style={styles.panel}>
+          <div style={styles.sectionLabel}>📋 PACKING REPORT</div>
+          <div style={{ fontSize: 18, lineHeight: 1.8 }}>
+            <div>🎒 Cub Scout 6 Essentials: {hasCub6 ? <span style={{ color: "#a0d468" }}>✓ All packed!</span> : <span style={{ color: "#c44" }}>✗ Missing some</span>}</div>
+            <div>🏕️ Scout 10 Essentials: {hasBsa10 ? <span style={{ color: "#a0d468" }}>✓ All packed!</span> : <span style={{ color: "#c44" }}>✗ Missing some</span>}</div>
+            <div>🩹 First Aid Kit: <span style={{ color: goodCount >= total * 0.75 ? "#a0d468" : "#c44" }}>{goodCount}/{total} useful items</span></div>
+            {hasDecoys && <div style={{ color: "#c44" }}>⚠ You packed unnecessary items — leave them home next time!</div>}
+          </div>
+        </div>
+
+        <div style={styles.panel}>
+          <div style={styles.sectionLabel}>🗺️ TRAIL LOG</div>
+          {scenarioHistory.map((entry, i) => (
+            <div key={i} style={styles.historyItem(entry.points)}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 18 }}>
+                  {entry.scenario.emoji} <strong>{entry.scenario.title}</strong>
+                </span>
+                <span style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 10, color: "#ffe066" }}>
+                  {entry.points}/3
+                </span>
+              </div>
+              {entry.scenario.category === "req5" && (
+                <span style={{ ...styles.badge("#8a6a1a"), fontSize: 8, marginTop: 4 }}>REQ 5</span>
+              )}
+              {entry.scenario.category === "gear" && (
+                <span style={{ ...styles.badge("#2a6a8a"), fontSize: 8, marginTop: 4 }}>GEAR CHECK</span>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div style={styles.panel}>
+          <div style={styles.sectionLabel}>🏕️ POST-HIKE DEBRIEF (Req 7)</div>
+          <p style={{ fontSize: 18, color: "#c8e6a0", lineHeight: 1.5 }}>
+            After your real hike, discuss with your den:
+          </p>
+          <div style={{ fontSize: 17, color: "#8ab868", lineHeight: 1.6, marginTop: 8 }}>
+            <div>• What went well on our hike?</div>
+            <div>• What would we do differently next time?</div>
+            <div>• Were we prepared with the right gear?</div>
+            <div>• What first aid skills did we practice?</div>
+            <div>• How did we follow Leave No Trace?</div>
+          </div>
+        </div>
+
+        <div style={styles.flexCenter}>
+          <HoverButton onClick={() => {
+            setPhase(PHASES.TITLE);
+            setDistance(null);
+            setBackpack([]);
+            setFirstAidKit([]);
+            setMilesTraveled(0);
+            setCurrentScenario(null);
+            setSelectedItems([]);
+            setScenarioResult(null);
+            setScenarioHistory([]);
+            setScore(0);
+            setScenarios([]);
+            setTotalScenarioCount(0);
+            setScenariosCompleted(0);
+            setShuffledBackpack(shuffleArray(ALL_BACKPACK));
+            setShuffledFirstAid(shuffleArray(ALL_FIRSTAID));
+          }}>
+            HIKE AGAIN 🔄
+          </HoverButton>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div style={styles.app}>
+      <link href={FONT_LINK} rel="stylesheet" />
+      <div style={styles.scanlines} />
+      <div style={styles.container}>
+        {phase === PHASES.TITLE && renderTitle()}
+        {phase === PHASES.DISTANCE && renderDistance()}
+        {phase === PHASES.BACKPACK && renderBackpack()}
+        {phase === PHASES.FIRSTAID && renderFirstAid()}
+        {phase === PHASES.HIKING && renderHiking()}
+        {phase === PHASES.SCENARIO && renderScenario()}
+        {phase === PHASES.RESULT && renderResult()}
+        {phase === PHASES.FINISH && renderFinish()}
+      </div>
+    </div>
+  );
+}
