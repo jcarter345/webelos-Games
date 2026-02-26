@@ -30,16 +30,13 @@ A solo hiking simulation that teaches the BSA 10 Essentials and first aid skills
 ## Project Structure
 
 ```text
-├── index.html          # Landing page
-├── games/
-│   ├── jeopardy.html   # Natural Events Jeopardy (playable)
-│   └── walkabout.html  # Webelos Walkabout (playable)
-└── src/
-    ├── jeopardy.jsx    # Jeopardy source (JSX)
-    └── walkabout.jsx   # Walkabout source (JSX)
+├── index.html        # Landing page
+└── games/
+    ├── jeopardy.html # Natural Events Jeopardy
+    └── walkabout.html# Webelos Walkabout
 ```
 
-The `games/` files are standalone — they load React 18 and Babel via CDN so they work without any install or build step. The `src/` files are the editable JSX source.
+Each file in `games/` is self-contained — React 18 and Babel load via CDN, so they work without any install or build step. The JSX lives directly in the `<script type="text/babel">` block inside each HTML file.
 
 ---
 
@@ -77,4 +74,4 @@ start index.html
 
 ## Editing an Existing Game
 
-Edit the `.jsx` file in `src/`, then copy the updated component into the `<script type="text/babel">` block of the corresponding `.html` file in `games/`. Open the `.html` file in a browser to test before committing.
+Open the `.html` file in `games/` and edit the JSX directly inside the `<script type="text/babel">` block. Open the file in a browser to test, then commit and push — GitHub Pages deploys automatically.

@@ -12,66 +12,24 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script src="../data/jeopardy-questions.js"></script>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
-const CATEGORIES = [
-  {
-    name: "TORNADOES",
-    emoji: "🌪️",
-    color: "#1a1a2e",
-    accent: "#e94560",
-    questions: [
-      { value: 100, answer: "This is the safest place to go in your house during a tornado.", question: "What is the basement or lowest floor interior room?", hint: "Think: go LOW and stay AWAY from windows" },
-      { value: 200, answer: "A tornado sounds like this loud vehicle when it passes nearby.", question: "What is a freight train?", hint: "Choo choo... but MUCH scarier" },
-      { value: 300, answer: "This is the difference between a Tornado WATCH and a Tornado WARNING.", question: "What is: a Watch means conditions could produce a tornado, a Warning means one has been spotted or detected?", hint: "One means 'be ready,' the other means 'take action NOW'" },
-      { value: 400, answer: "You should put this on your head for protection if a tornado is coming and you don't have a helmet.", question: "What is a bike helmet, or cover your head with your arms, pillows, or blankets?", hint: "Protect your noggin!" },
-      { value: 500, answer: "The region of the U.S. where the most tornadoes happen, which includes Oklahoma.", question: "What is Tornado Alley?", hint: "It's right here in our part of the country!" },
-    ],
-  },
-  {
-    name: "FLASH FLOODS",
-    emoji: "🌊",
-    color: "#0a1628",
-    accent: "#0ea5e9",
-    questions: [
-      { value: 100, answer: "The National Weather Service safety phrase that tells you never to drive through floodwater.", question: 'What is "Turn Around, Don\'t Drown"?', hint: "If the road is flooded, go the OTHER way" },
-      { value: 200, answer: "This many inches of moving floodwater can knock a grown adult off their feet.", question: "What is 6 inches?", hint: "It's about as tall as a dollar bill is long" },
-      { value: 300, answer: "When a flash flood is coming, you should immediately move to this kind of ground.", question: "What is higher ground?", hint: "Go UP, not down!" },
-      { value: 400, answer: "This many feet of moving water can sweep away a car or truck.", question: "What is 2 feet?", hint: "It's about as tall as your knee" },
-      { value: 500, answer: "Flash floods are different from regular floods because of this — they can happen in minutes or hours after heavy rain.", question: "What is speed (they happen very fast/suddenly)?", hint: "The word 'flash' gives you a clue!" },
-    ],
-  },
-  {
-    name: "WINTER STORMS",
-    emoji: "❄️",
-    color: "#0f172a",
-    accent: "#a78bfa",
-    questions: [
-      { value: 100, answer: "The dangerous condition when your body temperature drops too low from being out in the cold.", question: "What is hypothermia?", hint: "'Hypo' means low, 'thermia' means temperature" },
-      { value: 200, answer: "You should dress this way in winter to stay warm — NOT with one big sweater.", question: "What is wearing layers of clothing?", hint: "Like an onion... or an ogre" },
-      { value: 300, answer: "A blizzard must have winds of at least this speed (in mph) and last at least 3 hours.", question: "What is 35 mph?", hint: "That's about the speed limit on a neighborhood street" },
-      { value: 400, answer: "This condition happens when skin on your fingers, ears, nose, or toes freezes and turns pale or gray.", question: "What is frostbite?", hint: "Jack Frost is literally 'biting' you!" },
-      { value: 500, answer: "During a winter storm power outage, you should NEVER use a generator in this location because of carbon monoxide.", question: "What is indoors (or inside your house/garage)?", hint: "Generators make an invisible, deadly gas" },
-    ],
-  },
-  {
-    name: "BE PREPARED",
-    emoji: "⚡",
-    color: "#1a0f0a",
-    accent: "#f59e0b",
-    questions: [
-      { value: 100, answer: "Every family should have one of these kits ready with water, food, flashlight, and a first aid kit.", question: "What is an emergency kit (or disaster supply kit)?", hint: "Pack it BEFORE the emergency happens" },
-      { value: 200, answer: "Your family should plan to have at least this much water per person per day in an emergency.", question: "What is one gallon?", hint: "Think of a big milk jug" },
-      { value: 300, answer: "This is the 3-digit number you call in any emergency.", question: "What is 9-1-1?", hint: "Every Scout should know this one!" },
-      { value: 400, answer: "Your family should have a plan for where to meet if you get separated during a disaster. This is called a family _____ plan.", question: "What is a family communication plan (or meeting plan)?", hint: "How will you find each other?" },
-      { value: 500, answer: "A battery-powered or hand-crank version of this device helps you get weather updates when the power is out.", question: "What is a weather radio (or NOAA radio)?", hint: "No electricity or internet needed!" },
-    ],
-  },
-];
+// Pick one question at random from each value-level pool.
+// Called at the start of every new game so the board varies each time.
+function pickQuestions(categories) {
+  return categories.map((cat) => ({
+    ...cat,
+    questions: cat.questions.map((q) => ({
+      value: q.value,
+      ...q.pool[Math.floor(Math.random() * q.pool.length)],
+    })),
+  }));
+}
 
 const TEAM_COLORS = ["#e94560", "#0ea5e9", "#22c55e", "#f59e0b", "#a78bfa", "#ec4899"];
 
@@ -206,15 +164,16 @@ function QuestionModal({ category, questionData, onCorrect, onWrong, onClose, te
 
 function App() {
   const [gameState, setGameState] = useState("setup");
+  const [categories, setCategories] = useState(() => pickQuestions(JEOPARDY_QUESTIONS));
   const [teams, setTeams] = useState([]);
   const [scores, setScores] = useState([]);
   const [answered, setAnswered] = useState(new Set());
   const [activeQuestion, setActiveQuestion] = useState(null);
   const [activeTeam, setActiveTeam] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
-  const totalQuestions = CATEGORIES.reduce((sum, c) => sum + c.questions.length, 0);
+  const totalQuestions = categories.reduce((sum, c) => sum + c.questions.length, 0);
 
-  const startGame = (teamNames) => { setTeams(teamNames); setScores(new Array(teamNames.length).fill(0)); setGameState("playing"); };
+  const startGame = (teamNames) => { setCategories(pickQuestions(JEOPARDY_QUESTIONS)); setTeams(teamNames); setScores(new Array(teamNames.length).fill(0)); setGameState("playing"); };
   const handleCorrect = () => { const s = [...scores]; s[activeTeam] += activeQuestion.questionData.value; setScores(s); };
   const handleWrong = () => {};
   const handleClose = () => {
@@ -244,7 +203,7 @@ function App() {
             </div>
           ))}
         </div>
-        <button onClick={() => { setGameState("setup"); setAnswered(new Set()); setActiveTeam(0); setShowConfetti(false); }} style={{ padding: "14px 36px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #f59e0b, #ef4444)", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer", letterSpacing: 1 }}>Play Again</button>
+        <button onClick={() => { setCategories(pickQuestions(JEOPARDY_QUESTIONS)); setGameState("setup"); setAnswered(new Set()); setActiveTeam(0); setShowConfetti(false); }} style={{ padding: "14px 36px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #f59e0b, #ef4444)", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer", letterSpacing: 1 }}>Play Again</button>
       </div>
     );
   }
@@ -267,14 +226,14 @@ function App() {
         <span style={{ color: TEAM_COLORS[activeTeam], fontWeight: 700, fontSize: 14 }}>{teams[activeTeam]}</span>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, maxWidth: 800, margin: "0 auto" }}>
-        {CATEGORIES.map((cat) => (
+        {categories.map((cat) => (
           <div key={cat.name} style={{ textAlign: "center", padding: "10px 4px", borderRadius: 10, background: "linear-gradient(180deg, " + cat.accent + "30, transparent)", borderBottom: "3px solid " + cat.accent }}>
             <div style={{ fontSize: 20 }}>{cat.emoji}</div>
             <div style={{ color: cat.accent, fontWeight: 800, fontSize: 11, textTransform: "uppercase", letterSpacing: 1, lineHeight: 1.3, marginTop: 2 }}>{cat.name}</div>
           </div>
         ))}
         {[0, 1, 2, 3, 4].map((qIdx) =>
-          CATEGORIES.map((cat, catIdx) => {
+          categories.map((cat, catIdx) => {
             const key = catIdx + "-" + qIdx;
             const isAnswered = answered.has(key);
             const q = cat.questions[qIdx];

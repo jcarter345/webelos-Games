@@ -1,118 +1,67 @@
 # Cub Scouts Game Site — Publishing Plan
 
-## Current Files
+## File Structure
 
-| File | Purpose |
-|------|---------|
-| `natural-events-jeopardy.html` | Jeopardy game (ready to run in browser) |
-| `webelos-walkabout.html` | Walkabout adventure game (ready to run in browser) |
-| `jeopardy.jsx` | JSX source for Jeopardy |
-| `walkabout.jsx` | JSX source for Walkabout |
-
-Both HTML files are **self-contained** — they load React 18 + Babel via CDN with no build step required. This makes deployment very simple.
-
----
-
-## Proposed File Structure
-
-```
+```text
 CubScouts/              ← repo root
-├── index.html          ← landing page (NEW — links to games)
+├── index.html          ← landing page (entry point)
 ├── games/
-│   ├── jeopardy.html   ← renamed from natural-events-jeopardy.html
-│   └── walkabout.html  ← renamed from webelos-walkabout.html
-├── src/                ← source files (not served, just for editing)
-│   ├── jeopardy.jsx
-│   └── walkabout.jsx
+│   ├── jeopardy.html   ← Natural Events Jeopardy (self-contained)
+│   └── walkabout.html  ← Webelos Walkabout (self-contained)
+├── README.md
 └── SITE_PLAN.md
 ```
 
-**Why this structure:**
-- `index.html` is the entry point every static host expects
-- `games/` keeps the playable files organized and out of the root
-- `src/` preserves the original JSX for future editing (optional — can skip if clutter)
+Each file in `games/` is self-contained — React 18 and Babel load via CDN,
+so no build step or install is required. The JSX lives directly inside each
+HTML file's `<script type="text/babel">` block.
 
 ---
 
-## Step-by-Step Implementation
+## Hosting
 
-### Step 1 — Create the folder structure
-1. Create a `games/` folder
-2. Move `natural-events-jeopardy.html` → `games/jeopardy.html`
-3. Move `webelos-walkabout.html` → `games/walkabout.html`
-4. Optionally create `src/` and move the `.jsx` files there
+**Live site:** <https://jcarter345.github.io/webelos-Games/>
 
-### Step 2 — Create `index.html` (landing page)
-Build a simple landing page with:
-- Pack name / title
-- Card or button for each game linking to `games/jeopardy.html` and `games/walkabout.html`
-- Brief description of each game
-- No framework needed — plain HTML + inline CSS
+Hosted on **GitHub Pages** (free, auto-deploys on every push to `main`).
 
-Suggested style: match the dark/retro aesthetic of the existing games.
+To enable Pages on a new repo:
 
-### Step 3 — Initialize a Git repo
-```bash
-git init
-git add .
-git commit -m "Initial commit: Jeopardy + Walkabout games"
-```
+1. Go to **Settings → Pages**
+2. Set Source → `Deploy from a branch` → `main`, `/ (root)`
+3. Save
 
-### Step 4 — Push to GitHub
-1. Create a new **public** repo on GitHub (e.g., `cub-scouts-games`)
-2. Push your local repo to it
+### Other Options
 
-```bash
-git remote add origin https://github.com/YOUR_USERNAME/cub-scouts-games.git
-git push -u origin main
-```
-
-### Step 5 — Enable GitHub Pages
-1. Go to the repo on GitHub → **Settings** → **Pages**
-2. Set Source to `Deploy from a branch` → branch: `main`, folder: `/ (root)`
-3. Save — GitHub will publish your site at:
-   `https://YOUR_USERNAME.github.io/cub-scouts-games/`
+| Option | Cost | Notes |
+| --- | --- | --- |
+| **GitHub Pages** | Free | Auto-deploy from git, no extra accounts |
+| **Netlify** | Free tier | Drag-and-drop deploy option |
+| **Vercel** | Free tier | Similar to Netlify |
+| **Cloudflare Pages** | Free | Unlimited bandwidth |
 
 ---
 
-## Hosting Options Compared
+## Workflow
 
-| Option | Cost | Ease | Custom Domain | Notes |
-|--------|------|------|---------------|-------|
-| **GitHub Pages** | Free | Easy | Yes (free) | Best for static sites in a git repo |
-| **Netlify** | Free tier | Very easy | Yes (free) | Drag-and-drop deploy option |
-| **Vercel** | Free tier | Very easy | Yes (free) | Similar to Netlify |
-| **Cloudflare Pages** | Free | Easy | Yes (free) | Good performance, unlimited bandwidth |
+### Adding a New Game
 
-**Recommendation: GitHub Pages** — straightforward, no extra accounts, free forever for public repos.
-
----
-
-## Adding More Games Later
-
-1. Build/write a new standalone `.html` game file
+1. Build a new standalone `.html` file (React via CDN works great)
 2. Drop it in `games/`
-3. Add a card for it on `index.html`
-4. Commit and push — GitHub Pages auto-deploys
+3. Add a card for it in `index.html`
+4. Commit and push — GitHub Pages deploys automatically
 
----
+### Editing an Existing Game
 
-## Editing Games Going Forward
-
-The `.jsx` files in `src/` are easier to edit (syntax highlighting, etc.). After making changes:
-1. Edit the `.jsx` source
-2. Copy the updated component into the corresponding `.html` file, replacing the script block between `<script type="text/babel">` tags
-3. Test by opening the `.html` file locally in a browser
+1. Open the game's `.html` file in `games/`
+2. Edit the JSX inside the `<script type="text/babel">` block
+3. Test by opening the file in a browser (or use VS Code Live Server)
 4. Commit and push
 
-> **Tip:** Since these use Babel in-browser transpilation (not a real build), the `.html` files work by loading the JSX directly — no compile step needed. This is great for simplicity but means page load is slightly slower than a pre-built site. For a small Cub Scout game site this is totally fine.
-
 ---
 
-## Next Actions
+## Notes
 
-- [ ] Create `games/` folder and move HTML files
-- [ ] Create `index.html` landing page
-- [ ] Initialize git repo
-- [ ] Create GitHub repo and push
-- [ ] Enable GitHub Pages
+- Babel transpiles JSX in-browser at load time — no compile step needed.
+  Page load is slightly slower than a pre-built site, but fine for this use case.
+- For local testing without a server, open `index.html` directly in a browser.
+  All game links use relative paths so they resolve correctly from `file://`.
