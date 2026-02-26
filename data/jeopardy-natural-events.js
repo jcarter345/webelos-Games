@@ -16,7 +16,7 @@
 //   question – the correct response ("What is ...?")
 //   hint     – optional nudge shown on request
 
-const JEOPARDY_NATURAL_EVENTS = [
+var JEOPARDY_NATURAL_EVENTS = [
   {
     name: "TORNADOES",
     emoji: "🌪️",

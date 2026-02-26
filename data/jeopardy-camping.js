@@ -14,7 +14,7 @@
 //   question – the correct response ("What is ...?")
 //   hint     – optional nudge shown on request
 
-const JEOPARDY_CAMPING = [
+var JEOPARDY_CAMPING = [
   {
     name: "CAMPFIRES & COOKING",
     emoji: "🔥",
