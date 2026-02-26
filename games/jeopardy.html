@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Natural Events Jeopardy - Cub Scouts</title>
+<title>Jeopardy - Cub Scouts</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Trebuchet MS', sans-serif; background: #070720; }
@@ -12,12 +12,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
-<script src="../data/jeopardy-questions.js"></script>
+<script src="../data/jeopardy-themes.js"></script>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
+
+// ── Helpers ──────────────────────────────────────────────────────────
 
 // Pick one question at random from each value-level pool.
 // Called at the start of every new game so the board varies each time.
@@ -31,7 +33,81 @@ function pickQuestions(categories) {
   }));
 }
 
+// Dynamically load a theme's question JS file and return a promise
+// that resolves to the question array (the global variable it creates).
+function loadThemeData(theme) {
+  return new Promise((resolve, reject) => {
+    // Already loaded in a previous round?
+    if (window[theme.dataVar]) { resolve(window[theme.dataVar]); return; }
+    const script = document.createElement("script");
+    script.src = "../data/" + theme.dataFile;
+    script.onload = () => {
+      if (window[theme.dataVar]) resolve(window[theme.dataVar]);
+      else reject(new Error("Data variable " + theme.dataVar + " not found after loading " + theme.dataFile));
+    };
+    script.onerror = () => reject(new Error("Failed to load " + theme.dataFile));
+    document.head.appendChild(script);
+  });
+}
+
+// Read ?theme=<id> query param for direct-linking.
+function getThemeFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("theme");
+  if (!id) return null;
+  return JEOPARDY_THEMES.find((t) => t.id === id) || null;
+}
+
 const TEAM_COLORS = ["#e94560", "#0ea5e9", "#22c55e", "#f59e0b", "#a78bfa", "#ec4899"];
+
+// ── ThemePicker ─────────────────────────────────────────────────────
+
+function ThemePicker({ onSelect }) {
+  const [loading, setLoading] = useState(false);
+
+  const handlePick = (theme) => {
+    setLoading(true);
+    loadThemeData(theme).then((data) => {
+      onSelect(theme, data);
+    });
+  };
+
+  // Auto-select if ?theme=<id> is present
+  useEffect(() => {
+    const urlTheme = getThemeFromURL();
+    if (urlTheme) handlePick(urlTheme);
+  }, []);
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "linear-gradient(145deg, #0a0a1a 0%, #1a1a3e 50%, #0a0a1a 100%)", padding: 20 }}>
+      <div style={{ textAlign: "center", marginBottom: 40 }}>
+        <div style={{ fontSize: 48, marginBottom: 8 }}>⚜️</div>
+        <h1 style={{ fontSize: 32, fontWeight: 900, color: "#f8fafc", margin: 0, letterSpacing: 2, textTransform: "uppercase" }}>Jeopardy</h1>
+        <p style={{ color: "#94a3b8", fontSize: 14, marginTop: 8, letterSpacing: 1 }}>PICK YOUR ADVENTURE</p>
+      </div>
+
+      {loading ? (
+        <div style={{ color: "#94a3b8", fontSize: 16 }}>Loading questions...</div>
+      ) : (
+        <div style={{ display: "flex", gap: 20, flexWrap: "wrap", justifyContent: "center", maxWidth: 700 }}>
+          {JEOPARDY_THEMES.map((theme) => (
+            <button key={theme.id} onClick={() => handlePick(theme)}
+              style={{ background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: "32px 28px", width: 300, border: "2px solid rgba(255,255,255,0.1)", cursor: "pointer", textAlign: "left", transition: "all 0.2s", display: "flex", flexDirection: "column", gap: 12 }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#f59e0b"; e.currentTarget.style.background = "rgba(245,158,11,0.06)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}>
+              <div style={{ fontSize: 40 }}>{theme.emoji}</div>
+              <div style={{ color: "#f8fafc", fontWeight: 800, fontSize: 18, lineHeight: 1.3 }}>{theme.name}</div>
+              <div style={{ color: "#94a3b8", fontSize: 14, lineHeight: 1.5 }}>{theme.description}</div>
+              <div style={{ marginTop: 8, color: "#f59e0b", fontWeight: 700, fontSize: 13, textTransform: "uppercase", letterSpacing: 1 }}>Play →</div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── ConfettiEffect ──────────────────────────────────────────────────
 
 function ConfettiEffect() {
   const canvasRef = useRef(null);
@@ -67,7 +143,9 @@ function ConfettiEffect() {
   return React.createElement("canvas", { ref: canvasRef, style: { position: "fixed", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 999 } });
 }
 
-function TeamSetup({ onStart }) {
+// ── TeamSetup ───────────────────────────────────────────────────────
+
+function TeamSetup({ theme, onStart }) {
   const [numTeams, setNumTeams] = useState(2);
   const [names, setNames] = useState(["Den 1", "Den 2"]);
   const handleNumChange = (n) => {
@@ -81,9 +159,9 @@ function TeamSetup({ onStart }) {
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "linear-gradient(145deg, #0a0a1a 0%, #1a1a3e 50%, #0a0a1a 100%)", padding: 20 }}>
       <div style={{ textAlign: "center", marginBottom: 40 }}>
-        <div style={{ fontSize: 48, marginBottom: 8 }}>🏕️</div>
-        <h1 style={{ fontSize: 36, fontWeight: 900, color: "#f8fafc", margin: 0, letterSpacing: 2, textTransform: "uppercase" }}>Natural Events Jeopardy</h1>
-        <p style={{ color: "#94a3b8", fontSize: 14, marginTop: 8, letterSpacing: 1 }}>BE PREPARED FOR NATURAL EVENTS ADVENTURE</p>
+        <div style={{ fontSize: 48, marginBottom: 8 }}>{theme.emoji}</div>
+        <h1 style={{ fontSize: 36, fontWeight: 900, color: "#f8fafc", margin: 0, letterSpacing: 2, textTransform: "uppercase" }}>{theme.name} Jeopardy</h1>
+        <p style={{ color: "#94a3b8", fontSize: 14, marginTop: 8, letterSpacing: 1 }}>{theme.name.toUpperCase()} ADVENTURE</p>
       </div>
       <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 32, maxWidth: 420, width: "100%", border: "1px solid rgba(255,255,255,0.1)" }}>
         <label style={{ color: "#94a3b8", fontSize: 13, textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 12 }}>Number of Teams</label>
@@ -106,6 +184,8 @@ function TeamSetup({ onStart }) {
     </div>
   );
 }
+
+// ── QuestionModal ───────────────────────────────────────────────────
 
 function QuestionModal({ category, questionData, onCorrect, onWrong, onClose, teams, activeTeam }) {
   const [phase, setPhase] = useState("answer");
@@ -162,9 +242,13 @@ function QuestionModal({ category, questionData, onCorrect, onWrong, onClose, te
   );
 }
 
+// ── App ─────────────────────────────────────────────────────────────
+
 function App() {
-  const [gameState, setGameState] = useState("setup");
-  const [categories, setCategories] = useState(() => pickQuestions(JEOPARDY_QUESTIONS));
+  const [gameState, setGameState] = useState("theme-select");
+  const [theme, setTheme] = useState(null);
+  const [questionBank, setQuestionBank] = useState(null);
+  const [categories, setCategories] = useState([]);
   const [teams, setTeams] = useState([]);
   const [scores, setScores] = useState([]);
   const [answered, setAnswered] = useState(new Set());
@@ -173,7 +257,15 @@ function App() {
   const [showConfetti, setShowConfetti] = useState(false);
   const totalQuestions = categories.reduce((sum, c) => sum + c.questions.length, 0);
 
-  const startGame = (teamNames) => { setCategories(pickQuestions(JEOPARDY_QUESTIONS)); setTeams(teamNames); setScores(new Array(teamNames.length).fill(0)); setGameState("playing"); };
+  const handleThemeSelect = (selectedTheme, data) => {
+    setTheme(selectedTheme);
+    setQuestionBank(data);
+    setCategories(pickQuestions(data));
+    document.title = selectedTheme.name + " Jeopardy - Cub Scouts";
+    setGameState("setup");
+  };
+
+  const startGame = (teamNames) => { setCategories(pickQuestions(questionBank)); setTeams(teamNames); setScores(new Array(teamNames.length).fill(0)); setGameState("playing"); };
   const handleCorrect = () => { const s = [...scores]; s[activeTeam] += activeQuestion.questionData.value; setScores(s); };
   const handleWrong = () => {};
   const handleClose = () => {
@@ -183,7 +275,8 @@ function App() {
     if (na.size === totalQuestions) { setGameState("finished"); setShowConfetti(true); }
   };
 
-  if (gameState === "setup") return <TeamSetup onStart={startGame} />;
+  if (gameState === "theme-select") return <ThemePicker onSelect={handleThemeSelect} />;
+  if (gameState === "setup") return <TeamSetup theme={theme} onStart={startGame} />;
 
   if (gameState === "finished") {
     const maxScore = Math.max(...scores);
@@ -203,7 +296,10 @@ function App() {
             </div>
           ))}
         </div>
-        <button onClick={() => { setCategories(pickQuestions(JEOPARDY_QUESTIONS)); setGameState("setup"); setAnswered(new Set()); setActiveTeam(0); setShowConfetti(false); }} style={{ padding: "14px 36px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #f59e0b, #ef4444)", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer", letterSpacing: 1 }}>Play Again</button>
+        <div style={{ display: "flex", gap: 12 }}>
+          <button onClick={() => { setCategories(pickQuestions(questionBank)); setGameState("setup"); setAnswered(new Set()); setActiveTeam(0); setShowConfetti(false); }} style={{ padding: "14px 36px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #f59e0b, #ef4444)", color: "#fff", fontWeight: 800, fontSize: 16, cursor: "pointer", letterSpacing: 1 }}>Play Again</button>
+          <button onClick={() => { setGameState("theme-select"); setTheme(null); setQuestionBank(null); setCategories([]); setTeams([]); setScores([]); setAnswered(new Set()); setActiveTeam(0); setShowConfetti(false); }} style={{ padding: "14px 36px", borderRadius: 10, border: "2px solid rgba(255,255,255,0.2)", background: "transparent", color: "#94a3b8", fontWeight: 800, fontSize: 16, cursor: "pointer", letterSpacing: 1 }}>Change Theme</button>
+        </div>
       </div>
     );
   }
@@ -211,7 +307,7 @@ function App() {
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(160deg, #070720, #0f0f2e 40%, #0a0a1a)", padding: "12px 12px 80px" }}>
       <div style={{ textAlign: "center", padding: "12px 0 8px" }}>
-        <h1 style={{ fontSize: 22, fontWeight: 900, color: "#f8fafc", margin: 0, letterSpacing: 2, textTransform: "uppercase" }}>🏕️ Natural Events Jeopardy</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 900, color: "#f8fafc", margin: 0, letterSpacing: 2, textTransform: "uppercase" }}>{theme.emoji} {theme.name} Jeopardy</h1>
       </div>
       <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", margin: "8px 0 16px" }}>
         {teams.map((name, i) => (
