@@ -8,7 +8,7 @@
 //   1. Create data/jeopardy-<id>.js  (same pool structure as existing files)
 //   2. Add an entry here — the game picks it up automatically.
 
-const JEOPARDY_THEMES = [
+var JEOPARDY_THEMES = [
   {
     id: "natural-events",
     name: "Natural Events",
