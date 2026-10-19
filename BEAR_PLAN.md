@@ -1,5 +1,15 @@
 # Bear Adventures — Expansion Plan
 
+## Status
+
+- ✅ **Phase 1 + 2 shipped:** rank filter (`?rank=bear`) plus 23 Bear Jeopardy banks
+  (6 required + 17 elective; Archery, BB Guns and Slingshot share one range-safety bank).
+  Let's Camp reuses the shared Camping bank; Salmon Run got its own Bear-level bank.
+- ✅ **Decisions:** Standing Tall and Fellowship are covered **without** the parent/guardian
+  requirements (video, family device policy, at-home faith items). Camping and Water Safety show for both ranks.
+  All electives covered. Repo name stays `webelos-Games` for now.
+- ⏭️ **Phase 3 (next):** Bear Trail, Flag Folder, Forensics Lab, Oath & Law Builder, Giggle Generator.
+
 Plan for adding Bear (3rd grade) content to the Cub Scouts Activity Hub,
 reusing the existing Jeopardy engine and Walkabout game where possible.
 
