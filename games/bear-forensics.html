@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Forensics Lab — Cub Scouts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif; background: #0d0a18; color: #ece8f5; -webkit-font-smoothing: antialiased; }
+  #root { min-height: 100vh; }
+  .pixel { font-family: 'Press Start 2P', monospace; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 48px; }
+  .panel { background: rgba(255,255,255,0.04); border: 2px solid rgba(255,255,255,0.08); border-radius: 16px; padding: clamp(16px, 3vw, 26px); }
+  .btn { display: inline-block; border: none; border-radius: 10px; padding: 14px 28px; font: 800 17px 'Nunito', sans-serif; letter-spacing: 1px; cursor: pointer; background: linear-gradient(135deg, #a78bfa, #7c3aed); color: #fff; transition: filter .15s, transform .1s; }
+  .btn:hover { filter: brightness(1.12); }
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-ghost { background: transparent; color: #b4abc9; border: 2px solid rgba(255,255,255,0.18); }
+  .opt { display: block; width: 100%; text-align: left; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; color: inherit; font: 700 17px 'Nunito', sans-serif; cursor: pointer; transition: border-color .15s, background .15s; }
+  .opt:hover:not(:disabled) { border-color: #a78bfa; }
+  .opt.good { border-color: #22c55e; background: rgba(34,197,94,0.18); }
+  .opt.bad { border-color: #ef4444; background: rgba(239,68,68,0.15); }
+  .opt.sel { border-color: #a78bfa; background: rgba(167,139,250,0.18); }
+  .opt:disabled { cursor: default; }
+  .teach { margin-top: 14px; padding: 14px 16px; border-radius: 12px; background: rgba(245,158,11,0.1); border-left: 4px solid #f59e0b; line-height: 1.6; font-size: 16px; }
+  .muted { color: #9d94b5; }
+  h2 { font-size: clamp(20px, 3.5vw, 28px); font-weight: 900; margin-bottom: 8px; }
+  p { line-height: 1.6; }
+  .stations { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+  .station { text-align: left; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; cursor: pointer; color: inherit; font: inherit; transition: border-color .15s, transform .15s; }
+  .station:hover { border-color: #a78bfa; transform: translateY(-3px); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .card { background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 12px; text-align: center; color: inherit; font: inherit; cursor: pointer; transition: border-color .15s; }
+  .card:hover:not(:disabled) { border-color: #a78bfa; }
+  .card.good { border-color: #22c55e; background: rgba(34,197,94,0.14); }
+  .card.bad { border-color: #ef4444; background: rgba(239,68,68,0.12); }
+  .card.sel { border-color: #a78bfa; background: rgba(167,139,250,0.16); }
+  .card:disabled { cursor: default; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th, td { padding: 8px 6px; border-bottom: 1px solid rgba(255,255,255,0.08); text-align: left; vertical-align: top; }
+  th { font-weight: 900; color: #c4b5fd; }
+  .testbtn { padding: 8px 12px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); color: inherit; font: 800 15px 'Nunito', sans-serif; cursor: pointer; }
+  .testbtn.on { border-color: #a78bfa; background: rgba(167,139,250,0.2); }
+  select { font: 700 16px 'Nunito', sans-serif; padding: 8px 10px; border-radius: 10px; background: #1b1530; color: #ece8f5; border: 2px solid rgba(255,255,255,0.15); }
+  @keyframes fizz { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-26px); opacity: 0; } }
+  .bubble { animation: fizz 0.9s ease-out infinite; }
+  @media (max-width: 560px) { .btn:not(.btn-ghost) { width: 100%; } table { font-size: 13px; } }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useMemo, useEffect } = React;
+
+// Forensics Lab — Forensics adventure (Bear elective)
+// Stations: fingerprint types, mystery powders, and a case that uses both.
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+const pickOne = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+// ── Fingerprints ─────────────────────────────────────────────────────
+
+const PRINT_TYPES = {
+  loop: { name: "Loop", fact: "Loops are the most common pattern — about 6 out of 10 people have them. The ridges come in from one side, curve around, and go back out the same side." },
+  whorl: { name: "Whorl", fact: "Whorls look like a circle or spiral, like a whirlpool. About 3 out of 10 people have them." },
+  arch: { name: "Arch", fact: "Arches look like a hill or a wave. They're the rarest pattern — only about 1 out of 20 people have them." },
+};
+
+// A print is described by a few details so two prints can match exactly.
+function randomPrint(type = pickOne(Object.keys(PRINT_TYPES))) {
+  // Arches look the same flipped, so they never mirror.
+  return { type, mirror: type !== "arch" && Math.random() < 0.5, ridges: 5 + Math.floor(Math.random() * 3), scar: pickOne([null, "top", "bottom"]) };
+}
+
+// A decoy with the same pattern but one detail a kid can spot: it curves
+// the other way, or its scar is in a different place.
+function nearMiss(p) {
+  const moveScar = { ...p, scar: p.scar === "top" ? "bottom" : "top" };
+  return p.type === "arch" ? moveScar : pickOne([{ ...p, mirror: !p.mirror }, moveScar]);
+}
+
+function Fingerprint({ print, size = 120, label }) {
+  const { type, mirror, ridges, scar } = print;
+  const cx = 60, cy = 78, lines = [];
+  const stroke = { stroke: "#3b2f4a", strokeWidth: 2.4, fill: "none", strokeLinecap: "round" };
+  if (type === "loop") {
+    const rMax = 6 + (ridges - 1) * 6;
+    for (let k = 0; k < ridges; k++) {
+      const r = 6 + k * 6;
+      lines.push(`M8 ${cy + r} L${cx} ${cy + r} A${r} ${r} 0 0 0 ${cx} ${cy - r} L8 ${cy - r}`);
+    }
+    for (let y = cy - rMax - 7; y > 6; y -= 7) lines.push(`M4 ${y} Q60 ${y - 14} 116 ${y}`);
+    for (let y = cy + rMax + 7; y < 150; y += 7) lines.push(`M4 ${y} Q60 ${y + 8} 116 ${y}`);
+  } else if (type === "whorl") {
+    const turns = ridges * 0.85, pts = [];
+    for (let i = 0; i <= turns * 60; i++) {
+      const th = (i / 60) * Math.PI * 2, r = 2 + (5.6 * th) / (Math.PI * 2);
+      pts.push(`${(cx + r * Math.cos(th)).toFixed(1)} ${(cy + r * Math.sin(th) * 1.15).toFixed(1)}`);
+    }
+    lines.push("M" + pts.join(" L"));
+    const rOut = 2 + 5.6 * turns;
+    for (let y = cy - rOut * 1.15 - 6; y > 6; y -= 7) lines.push(`M4 ${y} Q60 ${y - 12} 116 ${y}`);
+    for (let y = cy + rOut * 1.15 + 6; y < 150; y += 7) lines.push(`M4 ${y} Q60 ${y + 8} 116 ${y}`);
+  } else {
+    const gap = 3 + (8 - ridges);
+    for (let y = 26; y < 150; y += 6 + gap * 0.4) {
+      const h = Math.max(4, 34 - (y - 26) * 0.22);
+      lines.push(`M4 ${y} Q60 ${y - h} 116 ${y}`);
+    }
+  }
+  const id = `clip${Math.random().toString(36).slice(2, 8)}`;
+  return (
+    <figure style={{ margin: 0 }}>
+      <svg viewBox="0 0 120 156" width={size} height={size * 1.3} role="img" aria-label={label || "fingerprint"} style={{ display: "block", margin: "0 auto" }}>
+        <defs><clipPath id={id}><ellipse cx="60" cy="78" rx="52" ry="70" /></clipPath></defs>
+        <ellipse cx="60" cy="78" rx="54" ry="72" fill="#f5ecdf" />
+        <g clipPath={`url(#${id})`} transform={mirror ? "translate(120 0) scale(-1 1)" : undefined}>
+          {lines.map((d, i) => <path key={i} d={d} {...stroke} />)}
+          {scar && <line x1="72" y1={scar === "top" ? 30 : 118} x2="98" y2={scar === "top" ? 44 : 132} stroke="#f5ecdf" strokeWidth="8" strokeLinecap="round" />}
+        </g>
+      </svg>
+      {label && <figcaption style={{ fontWeight: 800, marginTop: 6 }}>{label}</figcaption>}
+    </figure>
+  );
+}
+
+function PrintStation({ onDone }) {
+  // Round 1: name the pattern (5 prints). Round 2: match the crime-scene print (3 rounds).
+  const classify = useMemo(() => shuffle(["loop", "loop", "whorl", "whorl", "arch"]).map((t) => randomPrint(t)), []);
+  const matches = useMemo(() => Array.from({ length: 3 }, () => {
+    const scene = randomPrint();
+    const other = randomPrint(pickOne(Object.keys(PRINT_TYPES).filter((t) => t !== scene.type)));
+    return { scene, suspects: shuffle([{ ...scene, ok: true }, { ...nearMiss(scene), ok: false }, { ...other, ok: false }]) };
+  }), []);
+  const [i, setI] = useState(0);
+  const [ans, setAns] = useState(null);
+  const [right, setRight] = useState(0);
+  const total = classify.length + matches.length;
+  const inClassify = i < classify.length;
+  const done = i >= total;
+  const stars = right >= total ? 3 : right >= total - 2 ? 2 : 1;
+
+  const next = () => { setI(i + 1); setAns(null); };
+
+  if (done) {
+    return (
+      <div className="panel">
+        <h2>🔍 Fingerprint Pro!</h2>
+        <p style={{ fontSize: 20, fontWeight: 900 }}>{"⭐".repeat(stars)} {right} / {total} correct</p>
+        <div className="teach">Try it yourself: scribble with a pencil on paper, rub your fingertip in it, press clear tape on your finger, then stick the tape on white paper. Which pattern do you have?</div>
+        <button className="btn" style={{ marginTop: 16 }} onClick={() => onDone(stars)}>BACK TO THE LAB</button>
+      </div>
+    );
+  }
+
+  if (inClassify) {
+    const p = classify[i];
+    return (
+      <div>
+        <h2>👆 Name That Pattern</h2>
+        <p className="muted" style={{ marginBottom: 14 }}>Print {i + 1} of {classify.length} · Is it a loop, a whorl, or an arch?</p>
+        <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginBottom: 16 }}>
+          {Object.keys(PRINT_TYPES).map((t) => (
+            <div key={t} className="panel" style={{ padding: 10, textAlign: "center" }}>
+              <Fingerprint print={{ type: t, mirror: false, ridges: 6, scar: null }} size={58} />
+              <div style={{ fontWeight: 800, fontSize: 14, marginTop: 4 }}>{PRINT_TYPES[t].name}</div>
+            </div>
+          ))}
+        </div>
+        <div className="panel" style={{ textAlign: "center" }}>
+          <Fingerprint print={p} size={150} />
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginTop: 16 }}>
+            {Object.keys(PRINT_TYPES).map((t) => (
+              <button key={t} className={`opt ${ans ? (t === p.type ? "good" : ans === t ? "bad" : "") : ""}`} style={{ width: "auto", minWidth: 120, textAlign: "center" }} disabled={!!ans}
+                onClick={() => { setAns(t); if (t === p.type) setRight((r) => r + 1); }}>{PRINT_TYPES[t].name}</button>
+            ))}
+          </div>
+          {ans && <><div className="teach" style={{ textAlign: "left" }}>{ans === p.type ? "✅ " : "💡 "}{PRINT_TYPES[p.type].fact}</div><button className="btn" style={{ marginTop: 14 }} onClick={next}>NEXT →</button></>}
+        </div>
+      </div>
+    );
+  }
+
+  const m = matches[i - classify.length];
+  return (
+    <div>
+      <h2>🧪 Match the Print</h2>
+      <p className="muted" style={{ marginBottom: 14 }}>Case {i - classify.length + 1} of {matches.length} · Which suspect left the print? Look closely — check the direction and any breaks in the lines!</p>
+      <div className="panel" style={{ textAlign: "center", marginBottom: 14 }}>
+        <div className="pixel" style={{ fontSize: 10, color: "#fca5a5", marginBottom: 10 }}>FROM THE CRIME SCENE</div>
+        <Fingerprint print={m.scene} size={130} />
+      </div>
+      <div className="cards">
+        {m.suspects.map((s, k) => (
+          <button key={k} className={`card ${ans !== null ? (s.ok ? "good" : ans === k ? "bad" : "") : ""}`} disabled={ans !== null}
+            onClick={() => { setAns(k); if (s.ok) setRight((r) => r + 1); }}>
+            <Fingerprint print={s} size={100} label={`Suspect ${"ABC"[k]}`} />
+          </button>
+        ))}
+      </div>
+      {ans !== null && <><div className="teach">{m.suspects[ans].ok ? "✅ A perfect match! " : "💡 Close, but not the same. "}Detectives compare the pattern type, which way it curves, how many ridges there are, and tiny marks like scars.</div><button className="btn" style={{ marginTop: 14 }} onClick={next}>NEXT →</button></>}
+    </div>
+  );
+}
+
+// ── Mystery powders ──────────────────────────────────────────────────
+
+const POWDERS = {
+  salt: { name: "Salt", icon: "🧂" },
+  sugar: { name: "Sugar", icon: "🍬" },
+  soda: { name: "Baking Soda", icon: "🧁" },
+  starch: { name: "Cornstarch", icon: "🌽" },
+};
+const TESTS = {
+  look: { name: "Magnifier", icon: "🔍" },
+  water: { name: "Water", icon: "💧" },
+  vinegar: { name: "Vinegar", icon: "🍶" },
+  iodine: { name: "Iodine", icon: "🟤" },
+};
+const RESULTS = {
+  salt: { look: "Tiny clear cubes", water: "Dissolves — water is clear", vinegar: "Nothing happens", iodine: "Stays orange-brown" },
+  sugar: { look: "Shiny crystals, uneven shapes", water: "Dissolves — water is clear", vinegar: "Nothing happens", iodine: "Stays orange-brown" },
+  soda: { look: "Fine white powder, no crystals", water: "Mostly dissolves — a bit cloudy", vinegar: "FIZZES and bubbles!", iodine: "Stays orange-brown" },
+  starch: { look: "Very fine, squeaky powder", water: "Does NOT dissolve — cloudy and goopy", vinegar: "Gets goopy, no fizz", iodine: "Turns DARK BLUE-BLACK!" },
+};
+const BIG = { soda: { vinegar: true }, starch: { iodine: true, water: true } };
+
+function Beaker({ powder, test }) {
+  // Little picture of what the test looks like.
+  const r = test ? RESULTS[powder][test] : null;
+  const liquid = !test || test === "look" ? null : test === "iodine" ? (powder === "starch" ? "#1e1b4b" : "#c2410c") : test === "vinegar" ? "#fef3c7" : powder === "starch" || powder === "soda" ? "#e5e7eb" : "#bfdbfe";
+  return (
+    <svg viewBox="0 0 80 90" width="70" height="78" aria-hidden="true">
+      <path d="M18 8 L18 74 Q18 84 28 84 L52 84 Q62 84 62 74 L62 8" fill="rgba(255,255,255,0.06)" stroke="#cbd5e1" strokeWidth="3" />
+      {liquid ? <path d="M20 40 L60 40 L60 74 Q60 82 52 82 L28 82 Q20 82 20 74 Z" fill={liquid} opacity="0.85" /> : <path d="M22 72 Q40 60 58 72 L58 76 Q58 82 52 82 L28 82 Q22 82 22 76 Z" fill="#f8fafc" />}
+      {test === "vinegar" && powder === "soda" && [26, 36, 46, 54].map((x, i) => <circle key={i} className="bubble" style={{ animationDelay: `${i * 0.2}s` }} cx={x} cy="44" r="3.5" fill="#fff" />)}
+      {r && test === "look" && <text x="40" y="34" textAnchor="middle" fontSize="20">🔍</text>}
+    </svg>
+  );
+}
+
+function PowderStation({ onDone }) {
+  // Four mystery cups, each secretly one powder. Known samples can be tested too.
+  const mystery = useMemo(() => shuffle(Object.keys(POWDERS)), []);
+  const [mode, setMode] = useState("known");
+  const [cup, setCup] = useState(0);
+  const [log, setLog] = useState({}); // key "known:salt:water" or "m:0:water" → true
+  const [guesses, setGuesses] = useState({});
+  const [checked, setChecked] = useState(false);
+  const knownKeys = Object.keys(POWDERS);
+  const current = mode === "known" ? knownKeys[cup] : mystery[cup];
+  const [lastTest, setLastTest] = useState(null);
+
+  const runTest = (t) => {
+    setLastTest(t);
+    setLog((l) => ({ ...l, [`${mode}:${cup}:${t}`]: true }));
+  };
+  const right = mystery.filter((p, i) => guesses[i] === p).length;
+  const stars = right === 4 ? 3 : right >= 2 ? 2 : 1;
+  const allGuessed = mystery.every((_, i) => guesses[i]);
+
+  return (
+    <div>
+      <h2>🧂 Mystery Powders</h2>
+      <p className="muted" style={{ marginBottom: 14 }}>Four cups of white powder: salt, sugar, baking soda, and cornstarch — but which is which? Test the <b>known</b> samples first, then test the <b>mystery</b> cups and compare.</p>
+      <div className="teach" style={{ marginTop: 0, marginBottom: 14 }}>🧪 Lab rule: Never taste a mystery powder! Wear safety goggles, and only use iodine with an adult.</div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        <button className={`testbtn ${mode === "known" ? "on" : ""}`} onClick={() => { setMode("known"); setCup(0); setLastTest(null); }}>📋 Known Samples</button>
+        <button className={`testbtn ${mode === "m" ? "on" : ""}`} onClick={() => { setMode("m"); setCup(0); setLastTest(null); }}>❓ Mystery Cups</button>
+      </div>
+      <div className="panel" style={{ marginBottom: 14 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+          {(mode === "known" ? knownKeys : mystery).map((p, i) => (
+            <button key={i} className={`testbtn ${cup === i ? "on" : ""}`} onClick={() => { setCup(i); setLastTest(null); }}>
+              {mode === "known" ? `${POWDERS[p].icon} ${POWDERS[p].name}` : `Cup ${"ABCD"[i]}`}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+          <Beaker powder={current} test={lastTest} />
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <p style={{ fontWeight: 800, marginBottom: 8 }}>Run a test on {mode === "known" ? POWDERS[current].name : `Cup ${"ABCD"[cup]}`}:</p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {Object.entries(TESTS).map(([k, t]) => <button key={k} className={`testbtn ${lastTest === k ? "on" : ""}`} onClick={() => runTest(k)}>{t.icon} {t.name}</button>)}
+            </div>
+            {lastTest && <p style={{ marginTop: 10, fontSize: 18, fontWeight: 900, color: BIG[current]?.[lastTest] ? "#fde68a" : "#ece8f5" }}>{RESULTS[current][lastTest]}</p>}
+          </div>
+        </div>
+      </div>
+      <div className="panel" style={{ marginBottom: 14, overflowX: "auto" }}>
+        <p style={{ fontWeight: 900, marginBottom: 8 }}>📓 Lab Notebook</p>
+        <table>
+          <thead><tr><th>Sample</th>{Object.values(TESTS).map((t) => <th key={t.name}>{t.icon} {t.name}</th>)}</tr></thead>
+          <tbody>
+            {knownKeys.map((p, i) => (
+              <tr key={p}><td style={{ fontWeight: 800 }}>{POWDERS[p].icon} {POWDERS[p].name}</td>{Object.keys(TESTS).map((t) => <td key={t}>{log[`known:${i}:${t}`] ? RESULTS[p][t] : <span className="muted">—</span>}</td>)}</tr>
+            ))}
+            {mystery.map((p, i) => (
+              <tr key={i} style={{ background: "rgba(167,139,250,0.06)" }}><td style={{ fontWeight: 800 }}>❓ Cup {"ABCD"[i]}</td>{Object.keys(TESTS).map((t) => <td key={t}>{log[`m:${i}:${t}`] ? RESULTS[p][t] : <span className="muted">—</span>}</td>)}</tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="panel">
+        <p style={{ fontWeight: 900, marginBottom: 10 }}>🕵️ What's in each cup?</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: 10 }}>
+          {mystery.map((p, i) => (
+            <label key={i} style={{ fontWeight: 800, display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
+              Cup {"ABCD"[i]}
+              <select value={guesses[i] || ""} disabled={checked} onChange={(e) => setGuesses((g) => ({ ...g, [i]: e.target.value }))} aria-label={`Cup ${"ABCD"[i]}`}>
+                <option value="">Pick…</option>
+                {knownKeys.map((k) => <option key={k} value={k}>{POWDERS[k].name}</option>)}
+              </select>
+              {checked && (guesses[i] === p ? "✅" : `❌ ${POWDERS[p].name}`)}
+            </label>
+          ))}
+        </div>
+        {!checked
+          ? <button className="btn" style={{ marginTop: 16 }} disabled={!allGuessed} onClick={() => setChecked(true)}>CHECK MY ANSWERS</button>
+          : <>
+              <div className="teach">{right === 4 ? "✅ All four! " : ""}Each powder has a clue: baking soda fizzes in vinegar, cornstarch turns blue-black with iodine, and under a magnifier salt makes little cubes while sugar crystals have uneven shapes.</div>
+              <button className="btn" style={{ marginTop: 16 }} onClick={() => onDone(stars)}>{"⭐".repeat(stars)} BACK TO THE LAB</button>
+            </>}
+      </div>
+    </div>
+  );
+}
+
+// ── The case ─────────────────────────────────────────────────────────
+
+const SUSPECTS = [
+  { id: "rocky", name: "Rocky Raccoon", icon: "🦝", alibi: "I was making salty pretzels!", powder: "salt" },
+  { id: "sammy", name: "Sammy Squirrel", icon: "🐿️", alibi: "I was making lemonade with lots of sugar!", powder: "sugar" },
+  { id: "olive", name: "Olive Owl", icon: "🦉", alibi: "I was building a baking-soda volcano!", powder: "soda" },
+  { id: "benny", name: "Benny Beaver", icon: "🦫", alibi: "I was making gooey cornstarch slime!", powder: "starch" },
+];
+
+function CaseStation({ onDone }) {
+  const setup = useMemo(() => {
+    const suspects = shuffle(SUSPECTS).slice(0, 3);
+    const culprit = pickOne(suspects);
+    const scenePrint = randomPrint();
+    // One innocent print is a near miss, the other is a different pattern.
+    const innocents = shuffle(suspects.filter((s) => s.id !== culprit.id));
+    const prints = {
+      [culprit.id]: scenePrint,
+      [innocents[0].id]: nearMiss(scenePrint),
+      [innocents[1].id]: randomPrint(pickOne(Object.keys(PRINT_TYPES).filter((t) => t !== scenePrint.type))),
+    };
+    return { suspects, culprit, scenePrint, prints };
+  }, []);
+  const [step, setStep] = useState(0);
+  const [tests, setTests] = useState([]);
+  const [powderGuess, setPowderGuess] = useState(null);
+  const [accused, setAccused] = useState(null);
+  const sp = setup.culprit.powder;
+  const solved = accused === setup.culprit.id;
+  const stars = (solved ? 2 : 0) + (powderGuess === sp ? 1 : 0) || 1;
+
+  return (
+    <div>
+      <h2>🍪 The Case of the Missing Cookies</h2>
+      {step === 0 && (
+        <div className="panel">
+          <p style={{ fontSize: 18 }}>Oh no! The cookies for the den meeting are <b>gone</b>! The cookie jar is empty, and the detectives found two clues:</p>
+          <ul style={{ margin: "12px 0 12px 22px", lineHeight: 1.9, fontSize: 17 }}>
+            <li>🧂 A spill of <b>white powder</b> next to the jar</li>
+            <li>👆 A <b>fingerprint</b> on the jar's lid</li>
+          </ul>
+          <p style={{ marginBottom: 12 }}>Three suspects were nearby:</p>
+          <div className="cards" style={{ marginBottom: 16 }}>
+            {setup.suspects.map((s) => <div key={s.id} className="card" style={{ cursor: "default" }}><div style={{ fontSize: 44 }}>{s.icon}</div><div style={{ fontWeight: 900 }}>{s.name}</div><div className="muted" style={{ fontSize: 14 }}>"{s.alibi}"</div></div>)}
+          </div>
+          <button className="btn" onClick={() => setStep(1)}>TEST THE POWDER →</button>
+        </div>
+      )}
+      {step === 1 && (
+        <div className="panel">
+          <p style={{ fontWeight: 800, marginBottom: 10 }}>Clue 1: Test the white powder from the scene.</p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+            {Object.entries(TESTS).map(([k, t]) => <button key={k} className={`testbtn ${tests.includes(k) ? "on" : ""}`} onClick={() => setTests((ts) => ts.includes(k) ? ts : [...ts, k])}>{t.icon} {t.name}</button>)}
+          </div>
+          {tests.map((t) => <p key={t} style={{ fontWeight: 800, fontSize: 17 }}>{TESTS[t].icon} {TESTS[t].name}: <span style={{ color: BIG[sp]?.[t] ? "#fde68a" : "#ece8f5" }}>{RESULTS[sp][t]}</span></p>)}
+          {tests.length > 0 && (
+            <>
+              <p style={{ fontWeight: 800, margin: "14px 0 10px" }}>What is the powder?</p>
+              {Object.keys(POWDERS).map((k) => (
+                <button key={k} className={`opt ${powderGuess ? (k === sp ? "good" : powderGuess === k ? "bad" : "") : ""}`} disabled={!!powderGuess} onClick={() => setPowderGuess(k)}>{POWDERS[k].icon} {POWDERS[k].name}</button>
+              ))}
+            </>
+          )}
+          {powderGuess && <><div className="teach">{powderGuess === sp ? "✅ " : "💡 "}It's {POWDERS[sp].name.toLowerCase()}! Which suspect was using {POWDERS[sp].name.toLowerCase()}? Keep that in mind…</div><button className="btn" style={{ marginTop: 14 }} onClick={() => setStep(2)}>CHECK THE FINGERPRINT →</button></>}
+        </div>
+      )}
+      {step === 2 && (
+        <div>
+          <div className="panel" style={{ textAlign: "center", marginBottom: 14 }}>
+            <div className="pixel" style={{ fontSize: 10, color: "#fca5a5", marginBottom: 10 }}>PRINT FROM THE COOKIE JAR</div>
+            <Fingerprint print={setup.scenePrint} size={120} />
+          </div>
+          <p style={{ fontWeight: 800, marginBottom: 10 }}>Clue 2: Compare the print. Then tap the suspect you think did it!</p>
+          <div className="cards">
+            {setup.suspects.map((s) => (
+              <button key={s.id} className={`card ${accused ? (s.id === setup.culprit.id ? "good" : accused === s.id ? "bad" : "") : ""}`} disabled={!!accused} onClick={() => setAccused(s.id)}>
+                <div style={{ fontSize: 34 }}>{s.icon}</div>
+                <div style={{ fontWeight: 900, marginBottom: 6 }}>{s.name}</div>
+                <Fingerprint print={setup.prints[s.id]} size={88} />
+                <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>{POWDERS[s.powder].icon} {POWDERS[s.powder].name}</div>
+              </button>
+            ))}
+          </div>
+          {accused && (
+            <div className="panel" style={{ marginTop: 14 }}>
+              <p style={{ fontSize: 20, fontWeight: 900 }}>{solved ? "🎉 Case closed!" : "🤔 Not quite!"}</p>
+              <p style={{ marginTop: 6 }}>It was <b>{setup.culprit.icon} {setup.culprit.name}</b>! The powder was {POWDERS[sp].name.toLowerCase()} and the fingerprint matched perfectly. (Don't worry — {setup.culprit.name.split(" ")[0]} said sorry and baked a new batch for everyone.)</p>
+              <div className="teach">Real forensic scientists use more than one clue, just like you did. Two clues that point to the same person make a strong case!</div>
+              <button className="btn" style={{ marginTop: 14 }} onClick={() => onDone(stars)}>{"⭐".repeat(stars)} BACK TO THE LAB</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main ─────────────────────────────────────────────────────────────
+
+const STATIONS = [
+  { id: "prints", icon: "👆", name: "Fingerprints", desc: "Name the patterns and match prints from a crime scene", C: PrintStation },
+  { id: "powders", icon: "🧂", name: "Mystery Powders", desc: "Test 4 white powders and figure out which is which", C: PowderStation },
+  { id: "case", icon: "🍪", name: "The Cookie Case", desc: "Use both skills to solve a mystery", C: CaseStation },
+];
+
+function ForensicsLab() {
+  const [station, setStation] = useState(null);
+  const [stars, setStars] = useState({});
+  const total = Object.values(stars).reduce((a, b) => a + b, 0);
+  const Active = station && STATIONS.find((s) => s.id === station).C;
+  useEffect(() => { window.scrollTo(0, 0); }, [station]);
+
+  return (
+    <div className="wrap">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        {station
+          ? <button className="btn btn-ghost" style={{ padding: "8px 16px", fontSize: 15 }} onClick={() => setStation(null)}>← Lab</button>
+          : <a href="../index.html" style={{ color: "#9d94b5", textDecoration: "none", fontWeight: 700 }}>← Activity Hub</a>}
+        <span className="muted" style={{ fontWeight: 800 }}>⭐ {total} / {STATIONS.length * 3}</span>
+      </div>
+      {Active ? (
+        <Active key={station} onDone={(s) => { setStars((st) => ({ ...st, [station]: Math.max(st[station] || 0, s) })); setStation(null); }} />
+      ) : (
+        <>
+          <div style={{ textAlign: "center", marginBottom: 28 }}>
+            <div style={{ fontSize: 64 }}>🐻🔍</div>
+            <h1 className="pixel" style={{ fontSize: "clamp(18px, 4.5vw, 30px)", color: "#c4b5fd", margin: "16px 0", lineHeight: 1.5 }}>FORENSICS LAB</h1>
+            <p className="muted" style={{ fontSize: 18 }}>Forensics means using science to solve mysteries. Ready, detective?</p>
+          </div>
+          <div className="stations">
+            {STATIONS.map((s) => (
+              <button key={s.id} className="station" onClick={() => setStation(s.id)}>
+                <div style={{ fontSize: 40, marginBottom: 10 }}>{s.icon}</div>
+                <div style={{ fontWeight: 900, fontSize: 19, marginBottom: 4 }}>{s.name}</div>
+                <div className="muted" style={{ marginBottom: 12 }}>{s.desc}</div>
+                <div style={{ fontWeight: 800, color: stars[s.id] ? "#facc15" : "#a78bfa" }}>{stars[s.id] ? "⭐".repeat(stars[s.id]) + " Done!" : "Start →"}</div>
+              </button>
+            ))}
+          </div>
+          {STATIONS.every((s) => stars[s.id]) && (
+            <div className="panel" style={{ marginTop: 24, textAlign: "center" }}>
+              <p style={{ fontSize: 22, fontWeight: 900 }}>🏅 Master Detective! {total} / {STATIONS.length * 3} ⭐</p>
+              <p className="muted" style={{ marginTop: 8 }}>Now try the real tests at your den meeting — with goggles and an adult!</p>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<ForensicsLab />);
+</script>
+</body>
+</html>

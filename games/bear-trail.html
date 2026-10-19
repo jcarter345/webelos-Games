@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bear Trail — Cub Scouts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif; background: #0b1408; color: #e7efe2; -webkit-font-smoothing: antialiased; }
+  #root { min-height: 100vh; }
+  .pixel { font-family: 'Press Start 2P', monospace; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+  .panel { background: rgba(255,255,255,0.04); border: 2px solid rgba(255,255,255,0.08); border-radius: 16px; padding: clamp(18px, 3vw, 28px); }
+  .btn { display: inline-block; border: none; border-radius: 10px; padding: 14px 28px; font: 800 17px 'Nunito', sans-serif; letter-spacing: 1px; cursor: pointer; background: linear-gradient(135deg, #22c55e, #16a34a); color: #04120a; transition: filter .15s, transform .1s; }
+  .btn:hover { filter: brightness(1.12); }
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-ghost { background: transparent; color: #a3b8a0; border: 2px solid rgba(255,255,255,0.18); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .tile { background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 14px 10px; text-align: center; cursor: pointer; color: inherit; font: inherit; transition: all .15s; }
+  .tile:hover { border-color: #22c55e; }
+  .tile.on { border-color: #22c55e; background: rgba(34,197,94,0.14); }
+  .tile.good { border-color: #22c55e; background: rgba(34,197,94,0.18); }
+  .tile.bad { border-color: #ef4444; background: rgba(239,68,68,0.15); }
+  .tile.miss { border-color: #f59e0b; border-style: dashed; }
+  .tile .ico { font-size: 38px; display: block; margin-bottom: 6px; }
+  .tile .nm { font-weight: 800; font-size: 15px; }
+  .opt { display: block; width: 100%; text-align: left; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; color: inherit; font: 700 17px 'Nunito', sans-serif; cursor: pointer; transition: all .15s; }
+  .opt:hover:not(:disabled) { border-color: #22c55e; }
+  .opt.good { border-color: #22c55e; background: rgba(34,197,94,0.18); }
+  .opt.bad { border-color: #ef4444; background: rgba(239,68,68,0.15); }
+  .opt:disabled { cursor: default; }
+  .teach { margin-top: 14px; padding: 14px 16px; border-radius: 12px; background: rgba(245,158,11,0.1); border-left: 4px solid #f59e0b; line-height: 1.6; font-size: 16px; }
+  .muted { color: #94a89a; }
+  h2 { font-size: clamp(20px, 3.5vw, 28px); font-weight: 900; margin-bottom: 8px; }
+  p { line-height: 1.6; }
+  .bar { height: 14px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; }
+  .bar > div { height: 100%; background: linear-gradient(90deg, #22c55e, #a3e635); transition: width .6s; }
+  @keyframes walk { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  .scenery { white-space: nowrap; font-size: 34px; animation: walk 4s linear infinite; display: inline-block; }
+  @media (max-width: 480px) { .btn:not(.btn-ghost) { width: 100%; } }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useMemo } = React;
+
+// Bear Trail — Bear Habitat adventure (Bear required, Outdoors)
+// Pack the Cub Scout Six Essentials, dress for the weather, plan a 1-mile
+// route, read the fire danger sign, then walk the trail spotting 6 signs of
+// wildlife and making Leave No Trace choices.
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ── Step 1: Pack ─────────────────────────────────────────────────────
+
+const PACK_ITEMS = [
+  { id: "firstaid", name: "First Aid Kit", icon: "🩹", essential: true, why: "For scrapes, cuts, and blisters." },
+  { id: "water", name: "Water Bottle", icon: "💧", essential: true, why: "Fill it up so you stay hydrated." },
+  { id: "flashlight", name: "Flashlight", icon: "🔦", essential: true, why: "In case it gets dark." },
+  { id: "food", name: "Trail Food", icon: "🥜", essential: true, why: "A snack keeps your energy up." },
+  { id: "sun", name: "Sun Protection", icon: "🧴", essential: true, why: "Sunscreen, a hat, or sunglasses." },
+  { id: "whistle", name: "Whistle", icon: "📯", essential: true, why: "3 blasts means \"I need help!\"" },
+  { id: "game", name: "Video Game", icon: "🎮", essential: false, why: "You'll miss the wildlife! Leave it home." },
+  { id: "pillow", name: "Pillow", icon: "🛏️", essential: false, why: "Too big — it's only a 1-mile walk." },
+  { id: "candy", name: "Big Bag of Candy", icon: "🍬", essential: false, why: "Trail mix is a better trail food." },
+  { id: "toy", name: "Toy Truck", icon: "🚚", essential: false, why: "Extra weight you don't need." },
+  { id: "speaker", name: "Loud Speaker", icon: "🔊", essential: false, why: "Loud music scares animals and bothers other hikers." },
+  { id: "glass", name: "Glass Jar", icon: "🫙", essential: false, why: "It can break, and we leave bugs where we find them." },
+];
+
+// ── Step 2: Weather ──────────────────────────────────────────────────
+
+const WEATHER = [
+  { id: "sunny", label: "Sunny and Hot", icon: "☀️", need: ["shoes", "hat"], tip: "On a hot, sunny day: wear a sun hat and sturdy shoes, and drink lots of water." },
+  { id: "rainy", label: "Rainy", icon: "🌧️", need: ["shoes", "rain"], tip: "On a rainy day: wear a rain jacket and sturdy shoes that can get muddy." },
+  { id: "chilly", label: "Chilly and Windy", icon: "🌬️", need: ["shoes", "fleece", "beanie"], tip: "On a chilly day: wear layers — a warm jacket and a hat — plus sturdy shoes. You can take a layer off if you get warm." },
+];
+
+const CLOTHES = [
+  { id: "shoes", name: "Sturdy Sneakers", icon: "👟" },
+  { id: "hat", name: "Sun Hat", icon: "👒" },
+  { id: "rain", name: "Rain Jacket", icon: "🧥" },
+  { id: "fleece", name: "Warm Jacket", icon: "🧶" },
+  { id: "beanie", name: "Warm Hat", icon: "🧢" },
+  { id: "flipflops", name: "Flip-Flops", icon: "🩴", never: "Flip-flops slip and don't protect your toes." },
+  { id: "swim", name: "Swimsuit", icon: "🩳", never: "We're walking, not swimming!" },
+  { id: "costume", name: "Superhero Cape", icon: "🦸", never: "Capes snag on branches." },
+];
+
+// ── Step 3: Map ──────────────────────────────────────────────────────
+// Three loops from the trailhead. Exactly one adds up to 1 mile.
+
+const ROUTES = [
+  { id: "short", stops: ["Trailhead", "Frog Pond", "Trailhead"], legs: ["¼", "¼"], miles: 0.5,
+    pts: [[95, 190]], path: "M200 250 Q100 250 95 190 Q165 180 200 250", labels: [[122, 238], [160, 200]], feedback: "¼ + ¼ = ½ mile. Too short!" },
+  { id: "right", stops: ["Trailhead", "Big Oak", "Lookout Rock", "Trailhead"], legs: ["¼", "½", "¼"], miles: 1,
+    pts: [[320, 205], [335, 105]], path: "M200 250 L320 205 L335 105 L200 250", labels: [[262, 238], [350, 155], [255, 170]], feedback: "¼ + ½ + ¼ = 1 mile. Just right!" },
+  { id: "long", stops: ["Trailhead", "Beaver Dam", "Pine Ridge", "Trailhead"], legs: ["½", "¾", "¾"], miles: 2,
+    pts: [[140, 70], [245, 40]], path: "M200 250 L140 70 L245 40 L200 250", labels: [[150, 165], [190, 42], [237, 135]], feedback: "½ + ¾ + ¾ = 2 miles. Too long for today!" },
+];
+const ROUTE_COLORS = [
+  { name: "Red Trail", color: "#ef4444" },
+  { name: "Blue Trail", color: "#38bdf8" },
+  { name: "Yellow Trail", color: "#facc15" },
+];
+
+// ── Step 4: Fire danger (Smokey Bear sign colors) ────────────────────
+
+const FIRE_LEVELS = [
+  { id: "low", name: "Low", color: "#22c55e" },
+  { id: "moderate", name: "Moderate", color: "#3b82f6" },
+  { id: "high", name: "High", color: "#eab308" },
+  { id: "veryhigh", name: "Very High", color: "#f97316" },
+  { id: "extreme", name: "Extreme", color: "#ef4444" },
+];
+
+// ── Step 5: Trail events ─────────────────────────────────────────────
+
+const WILDLIFE = [
+  { id: "deer", sign: "👣", clue: "Heart-shaped prints in the mud, split down the middle.", answer: "Deer", fact: "Deer have split hooves, so their tracks look like an upside-down heart." },
+  { id: "raccoon", sign: "🖐️", clue: "Little prints by the creek that look like tiny human hands.", answer: "Raccoon", fact: "Raccoons have five long fingers and like to search for food near water." },
+  { id: "beaver", sign: "🪵", clue: "A pile of sticks across the stream, and tree stumps chewed to a point.", answer: "Beaver", fact: "Beavers chew trees with their big orange front teeth to build dams." },
+  { id: "squirrel", sign: "🌰", clue: "A pile of chewed-up pine cone pieces on a stump.", answer: "Squirrel", fact: "Squirrels pull pine cones apart to eat the seeds inside." },
+  { id: "woodpecker", sign: "🕳️", clue: "Neat holes drilled into a dead tree trunk, with wood chips below.", answer: "Woodpecker", fact: "Woodpeckers drill holes to find bugs to eat." },
+  { id: "snake", sign: "🧦", clue: "A thin, papery skin stuck on a rock in the sun.", answer: "Snake", fact: "Snakes shed their whole skin as they grow." },
+  { id: "spider", sign: "🕸️", clue: "Silky threads stretched between two branches, sparkling with dew.", answer: "Spider", fact: "Spiders spin webs to catch insects. Walk around it!" },
+  { id: "robin", sign: "🪺", clue: "A cup made of twigs and grass tucked in a tree branch.", answer: "Bird", fact: "Birds build nests to lay eggs. Look, but don't touch!" },
+  { id: "caterpillar", sign: "🍃", clue: "Leaves with holes chewed through them, like a snack was eaten.", answer: "Caterpillar", fact: "Caterpillars eat lots of leaves before they turn into butterflies or moths." },
+  { id: "snail", sign: "✨", clue: "A shiny, slimy trail across a log.", answer: "Snail", fact: "Snails and slugs leave a slime trail that helps them slide." },
+  { id: "ants", sign: "⛰️", clue: "A small hill of sandy dirt with tiny bugs marching in and out.", answer: "Ants", fact: "Ants live together in big colonies underground." },
+  { id: "owl", sign: "🦴", clue: "A gray, furry lump with tiny bones in it, under a big tree.", answer: "Owl", fact: "Owls swallow food whole and cough up the fur and bones as a pellet." },
+];
+const ANIMAL_NAMES = [...new Set(WILDLIFE.map((w) => w.answer)), "Fox", "Turtle", "Rabbit"];
+
+const CHOICES = [
+  { id: "wrapper", icon: "🍫", title: "Oops — a Wrapper!", text: "Your granola bar wrapper falls on the ground. What do you do?",
+    options: [["Pick it up and put it in my backpack", true], ["Leave it — it's small", false], ["Hide it under a rock", false]],
+    teach: "Pack it in, pack it out! Carry your trash until you find a trash can." },
+  { id: "puddle", icon: "💦", title: "Muddy Puddle", text: "There's a big muddy puddle in the middle of the trail.",
+    options: [["Walk through the middle of it", true], ["Walk around it on the plants", false], ["Turn around and go home", false]],
+    teach: "Walking around puddles tramples plants and makes the trail wider. Muddy shoes wash off!" },
+  { id: "flower", icon: "🌸", title: "Pretty Flower", text: "You find a beautiful wildflower next to the trail.",
+    options: [["Look at it and take a picture", true], ["Pick it for my mom", false], ["Dig it up to plant at home", false]],
+    teach: "Leave what you find, so the next hiker — and the bees — can enjoy it too." },
+  { id: "squirrelfood", icon: "🐿️", title: "Hungry Squirrel?", text: "A squirrel runs up close like it wants your trail mix.",
+    options: [["Don't feed it — watch from a distance", true], ["Toss it a few peanuts", false], ["Try to pet it", false]],
+    teach: "Respect wildlife. Human food makes animals sick and too bold around people." },
+  { id: "shortcut", icon: "↘️", title: "Shortcut?", text: "You could cut straight down the hill instead of following the trail.",
+    options: [["Stay on the trail", true], ["Take the shortcut — it's faster", false], ["Slide down on my bottom", false]],
+    teach: "Shortcuts squash plants and cause erosion that washes the dirt away. Stay on the trail." },
+  { id: "hikers", icon: "🚶", title: "Other Hikers", text: "A family is hiking toward you on the narrow trail.",
+    options: [["Step to the side, smile, and say hi", true], ["Keep walking in the middle", false], ["Race past them", false]],
+    teach: "Be kind to other visitors. Share the trail and keep your voice friendly." },
+  { id: "carve", icon: "🌳", title: "Big Tree", text: "Your buddy wants to carve their name into a big tree.",
+    options: [["Tell them it hurts the tree — take a picture instead", true], ["Help them carve it", false], ["Carve your name too", false]],
+    teach: "Carving hurts trees. Leave nature the way you found it." },
+  { id: "deerclose", icon: "🦌", title: "Deer Ahead!", text: "A deer is standing on the trail in front of you.",
+    options: [["Stop, stay quiet, and let it move away", true], ["Run toward it for a closer look", false], ["Throw a stick to scare it", false]],
+    teach: "Watch wildlife from a safe distance. If an animal changes what it's doing because of you, you're too close." },
+];
+
+const SAFETY = [
+  { id: "thunder", icon: "⛈️", title: "Thunder!", text: "You hear thunder rumbling in the distance.",
+    options: [["Head back and get inside a building or car", true], ["Stand under the tallest tree", false], ["Keep going — it's far away", false]],
+    teach: "When thunder roars, go indoors! Never shelter under a tall tree." },
+  { id: "buddy", icon: "🧍", title: "Where's My Buddy?", text: "Your buddy stopped to tie a shoe and is falling behind.",
+    options: [["Stop and wait so we stay together", true], ["Keep walking — they'll catch up", false], ["Run ahead to the end", false]],
+    teach: "Use the buddy system. Buddies always stay together." },
+  { id: "lost", icon: "🌲", title: "Which Way?", text: "You took a wrong turn and can't see your group.",
+    options: [["Stay in one place and blow my whistle 3 times", true], ["Keep walking to find them", false], ["Hide and wait quietly", false]],
+    teach: "If you're lost, \"hug a tree\" — stay put, and blow your whistle 3 times so people can find you." },
+];
+
+const SCENERY = "🌲🌳🌿🪨🌲🍄🌳🌾🌲🦋🌳🌿🌲🐦🌳🪵";
+
+// ── Small components ─────────────────────────────────────────────────
+
+function Stars({ got, max }) {
+  return <span aria-label={`${got} of ${max} stars`}>{"⭐".repeat(got)}<span style={{ opacity: 0.25 }}>{"⭐".repeat(Math.max(0, max - got))}</span></span>;
+}
+
+function StepHeader({ step, title, subtitle }) {
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div className="pixel" style={{ fontSize: 10, color: "#a3e635", letterSpacing: 2, marginBottom: 10 }}>STEP {step} OF 5</div>
+      <h2>{title}</h2>
+      {subtitle && <p className="muted">{subtitle}</p>}
+    </div>
+  );
+}
+
+function FireSign({ level }) {
+  // Semicircle dial in the Smokey Bear sign style.
+  const idx = FIRE_LEVELS.findIndex((l) => l.id === level);
+  const angle = -90 + (idx + 0.5) * 36;
+  return (
+    <svg viewBox="0 0 240 150" style={{ width: "min(320px, 100%)", display: "block", margin: "0 auto" }} role="img" aria-label="Fire danger sign">
+      <rect x="2" y="2" width="236" height="146" rx="12" fill="#3f2a14" stroke="#a16207" strokeWidth="3" />
+      {FIRE_LEVELS.map((l, i) => {
+        const a1 = Math.PI + (i * Math.PI) / 5, a2 = Math.PI + ((i + 1) * Math.PI) / 5;
+        const r = 90, cx = 120, cy = 130;
+        const p = `M${cx} ${cy} L${cx + r * Math.cos(a1)} ${cy + r * Math.sin(a1)} A${r} ${r} 0 0 1 ${cx + r * Math.cos(a2)} ${cy + r * Math.sin(a2)} Z`;
+        return <path key={l.id} d={p} fill={l.color} stroke="#3f2a14" strokeWidth="2" />;
+      })}
+      <g transform={`rotate(${angle} 120 130)`}>
+        <polygon points="116,130 124,130 120,52" fill="#f8fafc" stroke="#111" strokeWidth="1.5" />
+      </g>
+      <circle cx="120" cy="130" r="8" fill="#f8fafc" stroke="#111" />
+      <text x="120" y="22" textAnchor="middle" fill="#fde68a" fontFamily="Nunito" fontWeight="900" fontSize="13">FIRE DANGER TODAY</text>
+    </svg>
+  );
+}
+
+// ── Main game ────────────────────────────────────────────────────────
+
+function BearTrail() {
+  const [phase, setPhase] = useState("title");
+  const [scores, setScores] = useState({ pack: 0, clothes: 0, map: 0, fire: 0, walk: 0 });
+  const setScore = (k, v) => setScores((s) => ({ ...s, [k]: v }));
+  const [found, setFound] = useState([]);
+
+  // Randomized each new game
+  const [seed, setSeed] = useState(0);
+  const game = useMemo(() => {
+    const signs = shuffle(WILDLIFE).slice(0, 8);
+    const events = shuffle([
+      ...signs.map((w) => ({ kind: "sign", ...w, options: shuffle([w.answer, ...shuffle(ANIMAL_NAMES.filter((n) => n !== w.answer)).slice(0, 2)]) })),
+      ...shuffle(CHOICES).slice(0, 4).map((c) => ({ kind: "choice", ...c, options: shuffle(c.options) })),
+      ...shuffle(SAFETY).slice(0, 1).map((c) => ({ kind: "choice", ...c, options: shuffle(c.options) })),
+    ]);
+    return {
+      pack: shuffle(PACK_ITEMS),
+      weather: WEATHER[Math.floor(Math.random() * WEATHER.length)],
+      clothes: shuffle(CLOTHES),
+      routes: shuffle(ROUTES).map((r, i) => ({ ...r, ...ROUTE_COLORS[i] })),
+      fire: FIRE_LEVELS[Math.floor(Math.random() * FIRE_LEVELS.length)],
+      events,
+    };
+  }, [seed]);
+
+  const restart = () => { setSeed((s) => s + 1); setScores({ pack: 0, clothes: 0, map: 0, fire: 0, walk: 0 }); setFound([]); setPhase("pack"); };
+
+  return (
+    <div className="wrap">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <a href="../index.html" style={{ color: "#94a89a", textDecoration: "none", fontWeight: 700 }}>← Activity Hub</a>
+        {phase !== "title" && phase !== "finish" && <span className="muted" style={{ fontWeight: 700 }}>⭐ {Object.values(scores).reduce((a, b) => a + b, 0)}</span>}
+      </div>
+      {phase === "title" && <Title onStart={() => setPhase("pack")} />}
+      {phase === "pack" && <PackStep items={game.pack} onDone={(s) => { setScore("pack", s); setPhase("clothes"); }} />}
+      {phase === "clothes" && <ClothesStep weather={game.weather} clothes={game.clothes} onDone={(s) => { setScore("clothes", s); setPhase("map"); }} />}
+      {phase === "map" && <MapStep routes={game.routes} onDone={(s) => { setScore("map", s); setPhase("fire"); }} />}
+      {phase === "fire" && <FireStep level={game.fire} onDone={(s) => { setScore("fire", s); setPhase("walk"); }} />}
+      {phase === "walk" && <WalkStep events={game.events} onDone={(s, signs) => { setScore("walk", s); setFound(signs); setPhase("finish"); }} />}
+      {phase === "finish" && <Finish scores={scores} found={found} max={{ pack: 6, clothes: 3, map: 2, fire: 2, walk: game.events.length }} onRestart={restart} />}
+    </div>
+  );
+}
+
+function Title({ onStart }) {
+  return (
+    <div style={{ textAlign: "center", paddingTop: "6vh" }}>
+      <div style={{ fontSize: 72 }}>🐻🌲</div>
+      <h1 className="pixel" style={{ fontSize: "clamp(20px, 5vw, 34px)", color: "#a3e635", margin: "18px 0", lineHeight: 1.5, textShadow: "0 0 30px rgba(163,230,53,0.35)" }}>BEAR TRAIL</h1>
+      <p className="muted" style={{ fontSize: 18, maxWidth: 520, margin: "0 auto 10px" }}>A Bear Habitat adventure</p>
+      <div className="panel" style={{ maxWidth: 520, margin: "24px auto", textAlign: "left" }}>
+        <p style={{ fontWeight: 800, marginBottom: 8 }}>Get ready for your 1-mile walk:</p>
+        <ol style={{ paddingLeft: 22, lineHeight: 1.9 }}>
+          <li>🎒 Pack the Cub Scout Six Essentials</li>
+          <li>🌦️ Dress for the weather</li>
+          <li>🗺️ Pick a 1-mile route on the map</li>
+          <li>🔥 Read the fire danger sign</li>
+          <li>🐾 Walk the trail — spot 6 signs of wildlife and Leave No Trace!</li>
+        </ol>
+      </div>
+      <button className="btn" onClick={onStart}>START ADVENTURE →</button>
+    </div>
+  );
+}
+
+function PackStep({ items, onDone }) {
+  const [picked, setPicked] = useState([]);
+  const [checked, setChecked] = useState(false);
+  const toggle = (id) => !checked && setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  const essentialsPicked = items.filter((i) => i.essential && picked.includes(i.id)).length;
+  const extras = items.filter((i) => !i.essential && picked.includes(i.id)).length;
+  const score = Math.max(0, essentialsPicked - extras);
+
+  return (
+    <div>
+      <StepHeader step={1} title="🎒 Pack Your Backpack" subtitle="Pick the Cub Scout Six Essentials. Leave everything else at home!" />
+      <div className="grid" style={{ marginBottom: 20 }}>
+        {items.map((it) => {
+          const on = picked.includes(it.id);
+          let cls = on ? "tile on" : "tile";
+          if (checked) cls = it.essential ? (on ? "tile good" : "tile miss") : on ? "tile bad" : "tile";
+          return (
+            <button key={it.id} className={cls} onClick={() => toggle(it.id)} aria-pressed={on}>
+              <span className="ico">{it.icon}</span>
+              <span className="nm">{it.name}</span>
+              {checked && (on || it.essential) && <div style={{ fontSize: 13, marginTop: 6, lineHeight: 1.4 }} className="muted">{it.why}</div>}
+            </button>
+          );
+        })}
+      </div>
+      {!checked ? (
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <button className="btn" onClick={() => setChecked(true)} disabled={picked.length === 0}>CHECK MY PACK</button>
+          <span className="muted">{picked.length} item{picked.length === 1 ? "" : "s"} packed</span>
+        </div>
+      ) : (
+        <div className="panel">
+          <p style={{ fontSize: 18, fontWeight: 800 }}><Stars got={score} max={6} /> &nbsp;You packed {essentialsPicked} of 6 essentials{extras ? ` and ${extras} thing${extras > 1 ? "s" : ""} you didn't need` : ""}.</p>
+          <div className="teach">The Cub Scout Six Essentials: first aid kit, water bottle, flashlight, trail food, sun protection, and a whistle. Dashed yellow boxes are essentials you missed.</div>
+          <button className="btn" style={{ marginTop: 16 }} onClick={() => onDone(score)}>NEXT: WEATHER →</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ClothesStep({ weather, clothes, onDone }) {
+  const [picked, setPicked] = useState([]);
+  const [checked, setChecked] = useState(false);
+  const toggle = (id) => !checked && setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  const needHit = weather.need.filter((n) => picked.includes(n)).length;
+  const wrong = picked.filter((p) => !weather.need.includes(p) && clothes.find((c) => c.id === p)?.never).length;
+  const score = Math.max(0, Math.round((needHit / weather.need.length) * 3) - wrong);
+
+  return (
+    <div>
+      <StepHeader step={2} title="🌦️ Dress for the Weather" subtitle="Check the forecast, then pick what to wear." />
+      <div className="panel" style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 18 }}>
+        <div style={{ fontSize: 64 }}>{weather.icon}</div>
+        <div>
+          <div className="pixel" style={{ fontSize: 10, color: "#a3e635", marginBottom: 8 }}>TODAY'S FORECAST</div>
+          <div style={{ fontSize: 26, fontWeight: 900 }}>{weather.label}</div>
+        </div>
+      </div>
+      <div className="grid" style={{ marginBottom: 20 }}>
+        {clothes.map((c) => {
+          const on = picked.includes(c.id);
+          const needed = weather.need.includes(c.id);
+          let cls = on ? "tile on" : "tile";
+          if (checked) cls = needed ? (on ? "tile good" : "tile miss") : on ? "tile bad" : "tile";
+          return (
+            <button key={c.id} className={cls} onClick={() => toggle(c.id)} aria-pressed={on}>
+              <span className="ico">{c.icon}</span>
+              <span className="nm">{c.name}</span>
+              {checked && on && c.never && <div style={{ fontSize: 13, marginTop: 6 }} className="muted">{c.never}</div>}
+            </button>
+          );
+        })}
+      </div>
+      {!checked ? (
+        <button className="btn" onClick={() => setChecked(true)} disabled={picked.length === 0}>I'M DRESSED</button>
+      ) : (
+        <div className="panel">
+          <p style={{ fontSize: 18, fontWeight: 800 }}><Stars got={score} max={3} /></p>
+          <div className="teach">{weather.tip}</div>
+          <button className="btn" style={{ marginTop: 16 }} onClick={() => onDone(score)}>NEXT: PLAN YOUR ROUTE →</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MapStep({ routes, onDone }) {
+  const [tries, setTries] = useState([]);
+  const done = tries.some((id) => routes.find((r) => r.id === id).miles === 1);
+  const pick = (r) => !done && !tries.includes(r.id) && setTries((t) => [...t, r.id]);
+  const score = done ? (tries.length === 1 ? 2 : 1) : 0;
+
+  return (
+    <div>
+      <StepHeader step={3} title="🗺️ Know Before You Go" subtitle="Your walk needs to be exactly 1 mile. Add up the parts of each loop and pick the right one." />
+      <div className="panel" style={{ marginBottom: 16, padding: 12 }}>
+        <svg viewBox="0 0 400 280" style={{ width: "100%", maxHeight: 340, display: "block" }} role="img" aria-label="Trail map with three loops">
+          <rect width="400" height="280" rx="12" fill="#1a2e14" />
+          <ellipse cx="70" cy="200" rx="34" ry="20" fill="#1e40af" opacity="0.7" />
+          <path d="M100 20 Q130 60 120 110" stroke="#1e40af" strokeWidth="6" fill="none" opacity="0.7" />
+          {["M320 40 l10 -18 l10 18z", "M345 50 l10 -18 l10 18z", "M30 230 l10 -18 l10 18z", "M360 220 l10 -18 l10 18z"].map((d, i) => <path key={i} d={d} fill="#166534" />)}
+          {routes.map((r) => (
+            <g key={r.id}>
+              <path d={r.path} stroke={r.color} strokeWidth={tries.includes(r.id) ? 7 : 5} fill="none" strokeDasharray={done && r.miles !== 1 ? "6 6" : "none"} strokeLinejoin="round" />
+              {r.pts.map(([x, y], i) => (
+                <g key={"p" + i}>
+                  <circle cx={x} cy={y} r="6" fill={r.color} />
+                  <text x={x} y={y - 11} textAnchor="middle" fill="#e7efe2" fontSize="11" fontWeight="800" fontFamily="Nunito">{r.stops[i + 1]}</text>
+                </g>
+              ))}
+              {r.legs.map((leg, i) => (
+                <g key={i}>
+                  <rect x={r.labels[i][0] - 18} y={r.labels[i][1] - 13} width="36" height="22" rx="6" fill="#0b1408" stroke={r.color} strokeWidth="2" />
+                  <text x={r.labels[i][0]} y={r.labels[i][1] + 3} textAnchor="middle" fill="#fff" fontSize="13" fontWeight="900" fontFamily="Nunito">{leg}</text>
+                </g>
+              ))}
+            </g>
+          ))}
+          <circle cx="200" cy="250" r="10" fill="#f8fafc" />
+          <text x="200" y="274" textAnchor="middle" fill="#f8fafc" fontSize="12" fontWeight="800" fontFamily="Nunito">TRAILHEAD</text>
+          <text x="388" y="20" textAnchor="end" fill="#94a89a" fontSize="11" fontFamily="Nunito">numbers = miles</text>
+        </svg>
+      </div>
+      {routes.map((r) => {
+        const tried = tries.includes(r.id);
+        return (
+          <button key={r.id} className={`opt ${tried ? (r.miles === 1 ? "good" : "bad") : ""}`} disabled={done || tried} onClick={() => pick(r)}>
+            <span style={{ color: r.color, fontWeight: 900 }}>● {r.name}</span>
+            <span className="muted" style={{ fontWeight: 600 }}> — {r.stops.join(" → ")}</span>
+            {tried && <div style={{ marginTop: 6, fontSize: 15 }}>{r.feedback}</div>}
+          </button>
+        );
+      })}
+      {done && (
+        <div className="panel" style={{ marginTop: 6 }}>
+          <p style={{ fontSize: 18, fontWeight: 800 }}><Stars got={score} max={2} /></p>
+          <div className="teach">Knowing your route before you go means you can tell an adult where you'll be and when you'll be back.</div>
+          <button className="btn" style={{ marginTop: 16 }} onClick={() => onDone(score)}>NEXT: FIRE DANGER →</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FireStep({ level, onDone }) {
+  const [a1, setA1] = useState(null);
+  const [a2, setA2] = useState(null);
+  const q2 = useMemo(() => shuffle([
+    ["No — we don't need a fire on a short walk", true],
+    ["Yes — build a big one", false],
+    ["Yes, but only if no one is looking", false],
+  ]), []);
+  const score = (a1 === level.id ? 1 : 0) + (a2 !== null && q2[a2][1] ? 1 : 0);
+
+  return (
+    <div>
+      <StepHeader step={4} title="🔥 Check the Fire Danger" subtitle="Parks post a fire danger sign near the trailhead. Read the sign!" />
+      <div className="panel" style={{ marginBottom: 16 }}>
+        <FireSign level={level.id} />
+        <div style={{ display: "flex", justifyContent: "center", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
+          {FIRE_LEVELS.map((l) => <span key={l.id} style={{ fontSize: 13, fontWeight: 800, padding: "3px 10px", borderRadius: 999, background: l.color, color: "#111" }}>{l.name}</span>)}
+        </div>
+      </div>
+      <p style={{ fontWeight: 800, fontSize: 18, marginBottom: 10 }}>1. What is the fire danger today?</p>
+      {FIRE_LEVELS.map((l) => (
+        <button key={l.id} className={`opt ${a1 !== null ? (l.id === level.id ? "good" : l.id === a1 ? "bad" : "") : ""}`} disabled={a1 !== null} onClick={() => setA1(l.id)}>
+          <span style={{ display: "inline-block", width: 14, height: 14, borderRadius: 4, background: l.color, marginRight: 10, verticalAlign: "middle" }} />{l.name}
+        </button>
+      ))}
+      {a1 !== null && (
+        <>
+          <p style={{ fontWeight: 800, fontSize: 18, margin: "18px 0 10px" }}>2. Should we have a campfire on our walk?</p>
+          {q2.map(([txt, ok], i) => (
+            <button key={i} className={`opt ${a2 !== null ? (ok ? "good" : a2 === i ? "bad" : "") : ""}`} disabled={a2 !== null} onClick={() => setA2(i)}>{txt}</button>
+          ))}
+        </>
+      )}
+      {a2 !== null && (
+        <div className="panel" style={{ marginTop: 6 }}>
+          <p style={{ fontSize: 18, fontWeight: 800 }}><Stars got={score} max={2} /></p>
+          <div className="teach">Smokey Bear's sign goes from green (Low) to red (Extreme). The higher the danger, the easier a wildfire can start. On a short walk, the safest number of fires is zero!</div>
+          <button className="btn" style={{ marginTop: 16 }} onClick={() => onDone(score)}>HIT THE TRAIL →</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WalkStep({ events, onDone }) {
+  const [i, setI] = useState(0);
+  const [answer, setAnswer] = useState(null);
+  const [score, setScoreLocal] = useState(0);
+  const [signs, setSigns] = useState([]);
+  const ev = events[i];
+  const correct = (opt) => (ev.kind === "sign" ? opt === ev.answer : opt[1]);
+
+  const choose = (idx) => {
+    if (answer !== null) return;
+    setAnswer(idx);
+    if (correct(ev.options[idx])) {
+      setScoreLocal((s) => s + 1);
+      if (ev.kind === "sign") setSigns((s) => [...s, ev]);
+    }
+  };
+  const next = () => {
+    if (i + 1 >= events.length) { onDone(score, signs); return; }
+    setI(i + 1); setAnswer(null);
+  };
+
+  return (
+    <div>
+      <StepHeader step={5} title="🐾 Walk the Trail" subtitle="Spot 6 signs of wildlife and make Leave No Trace choices." />
+      <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 800, marginBottom: 6 }}>
+        <span>🥾 {(i / events.length).toFixed(1)} mi</span>
+        <span>🐾 Signs: {signs.length} / 6</span>
+        <span>🏁 1 mi</span>
+      </div>
+      <div className="bar" style={{ marginBottom: 14 }}><div style={{ width: `${(i / events.length) * 100}%` }} /></div>
+      <div style={{ overflow: "hidden", marginBottom: 16, borderRadius: 12, background: "rgba(255,255,255,0.03)", padding: "6px 0" }} aria-hidden="true">
+        <span className="scenery">{SCENERY + SCENERY}</span>
+      </div>
+      <div className="panel" key={ev.id}>
+        {ev.kind === "sign" ? (
+          <>
+            <div className="pixel" style={{ fontSize: 10, color: "#a3e635", marginBottom: 10 }}>WILDLIFE SIGN!</div>
+            <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 14 }}>
+              <div style={{ fontSize: 56 }}>{ev.sign}</div>
+              <p style={{ fontSize: 19, fontWeight: 700 }}>{ev.clue}</p>
+            </div>
+            <p style={{ fontWeight: 800, marginBottom: 10 }}>Who left this sign?</p>
+          </>
+        ) : (
+          <>
+            <div className="pixel" style={{ fontSize: 10, color: "#f59e0b", marginBottom: 10 }}>TRAIL CHOICE</div>
+            <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 14 }}>
+              <div style={{ fontSize: 56 }}>{ev.icon}</div>
+              <div><div style={{ fontSize: 21, fontWeight: 900 }}>{ev.title}</div><p style={{ fontSize: 18 }}>{ev.text}</p></div>
+            </div>
+          </>
+        )}
+        {ev.options.map((opt, idx) => {
+          const label = ev.kind === "sign" ? opt : opt[0];
+          let cls = "opt";
+          if (answer !== null) cls += correct(opt) ? " good" : answer === idx ? " bad" : "";
+          return <button key={idx} className={cls} disabled={answer !== null} onClick={() => choose(idx)}>{label}</button>;
+        })}
+        {answer !== null && (
+          <>
+            <div className="teach">{correct(ev.options[answer]) ? "✅ " : "💡 "}{ev.kind === "sign" ? ev.fact : ev.teach}</div>
+            <button className="btn" style={{ marginTop: 16 }} onClick={next}>{i + 1 >= events.length ? "FINISH THE WALK 🏁" : "KEEP WALKING →"}</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Finish({ scores, found, max, onRestart }) {
+  const total = Object.values(scores).reduce((a, b) => a + b, 0);
+  const totalMax = Object.values(max).reduce((a, b) => a + b, 0);
+  const pct = total / totalMax;
+  const title = pct >= 0.9 ? "Trail Master" : pct >= 0.7 ? "Habitat Hero" : pct >= 0.5 ? "Trail Explorer" : "Trail Rookie";
+  const rows = [["🎒 Six Essentials", "pack"], ["🌦️ Weather Gear", "clothes"], ["🗺️ 1-Mile Route", "map"], ["🔥 Fire Danger", "fire"], ["🐾 Trail Choices", "walk"]];
+
+  return (
+    <div style={{ textAlign: "center" }}>
+      <div style={{ fontSize: 64 }}>🏁🐻</div>
+      <h1 className="pixel" style={{ fontSize: "clamp(16px, 4vw, 26px)", color: "#a3e635", margin: "16px 0", lineHeight: 1.6 }}>YOU WALKED 1 MILE!</h1>
+      <p style={{ fontSize: 22, fontWeight: 900, marginBottom: 20 }}>🏅 {title} — {total} / {totalMax} ⭐</p>
+      <div className="panel" style={{ textAlign: "left", maxWidth: 560, margin: "0 auto 20px" }}>
+        {rows.map(([label, k]) => (
+          <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.06)", fontWeight: 700 }}>
+            <span>{label}</span><span>{scores[k]} / {max[k]}</span>
+          </div>
+        ))}
+      </div>
+      <div className="panel" style={{ textAlign: "left", maxWidth: 560, margin: "0 auto 24px" }}>
+        <p style={{ fontWeight: 900, fontSize: 18, marginBottom: 10 }}>📓 Wildlife Journal — {found.length} sign{found.length === 1 ? "" : "s"} found {found.length >= 6 ? "✅" : "(the adventure asks for 6!)"}</p>
+        {found.length === 0 && <p className="muted">No signs spotted this time. Try again!</p>}
+        {found.map((f) => <div key={f.id} style={{ padding: "6px 0", fontSize: 16 }}>{f.sign} <b>{f.answer}</b> — <span className="muted">{f.clue}</span></div>)}
+      </div>
+      <p className="muted" style={{ maxWidth: 520, margin: "0 auto 20px" }}>Now go do it for real! Grab your Six Essentials, a buddy, and an adult, and walk your own 1-mile trail.</p>
+      <button className="btn" onClick={onRestart}>PLAY AGAIN 🔄</button>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<BearTrail />);
+</script>
+</body>
+</html>

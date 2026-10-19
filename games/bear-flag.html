@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Flag Folder — Cub Scouts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif; background: #070b1a; color: #e6ebf5; -webkit-font-smoothing: antialiased; }
+  #root { min-height: 100vh; }
+  .pixel { font-family: 'Press Start 2P', monospace; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+  .panel { background: rgba(255,255,255,0.04); border: 2px solid rgba(255,255,255,0.08); border-radius: 16px; padding: clamp(18px, 3vw, 28px); }
+  .btn { display: inline-block; border: none; border-radius: 10px; padding: 14px 28px; font: 800 17px 'Nunito', sans-serif; letter-spacing: 1px; cursor: pointer; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #fff; transition: filter .15s, transform .1s; }
+  .btn:hover { filter: brightness(1.12); }
+  .btn:active { transform: scale(0.98); }
+  .btn-ghost { background: transparent; color: #a8b3cc; border: 2px solid rgba(255,255,255,0.18); }
+  .opt { display: block; width: 100%; text-align: left; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; color: inherit; font: 700 17px 'Nunito', sans-serif; cursor: pointer; transition: border-color .15s, background .15s; }
+  .opt:hover:not(:disabled) { border-color: #60a5fa; }
+  .opt.good { border-color: #22c55e; background: rgba(34,197,94,0.18); }
+  .opt.bad { border-color: #ef4444; background: rgba(239,68,68,0.15); }
+  .opt.sel { border-color: #60a5fa; background: rgba(96,165,250,0.18); }
+  .opt:disabled { cursor: default; }
+  .teach { margin-top: 14px; padding: 14px 16px; border-radius: 12px; background: rgba(245,158,11,0.1); border-left: 4px solid #f59e0b; line-height: 1.6; font-size: 16px; }
+  .muted { color: #95a0b8; }
+  h2 { font-size: clamp(20px, 3.5vw, 28px); font-weight: 900; margin-bottom: 8px; }
+  p { line-height: 1.6; }
+  .stations { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .station { text-align: left; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; cursor: pointer; color: inherit; font: inherit; transition: border-color .15s, transform .15s; }
+  .station:hover { border-color: #60a5fa; transform: translateY(-3px); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 560px) { .two { grid-template-columns: 1fr; } .btn:not(.btn-ghost) { width: 100%; } }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useMemo, useEffect } = React;
+
+// Flag Folder — Paws for Action adventure (Bear required, Citizenship)
+// Four stations: fold the flag, raise and lower it, flag rules, U.S. symbols.
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+const RED = "#b91c1c", BLUE = "#1e3a8a", WHITE = "#f8fafc";
+
+// ── Flag drawing ─────────────────────────────────────────────────────
+
+function Stars({ x, y, w, h, rows = 9 }) {
+  // 9 rows alternating 6 and 5 stars = 50 stars
+  const dots = [];
+  for (let r = 0; r < rows; r++) {
+    const n = r % 2 === 0 ? 6 : 5;
+    for (let c = 0; c < n; c++) {
+      const cx = x + ((c + (r % 2 === 0 ? 0.5 : 1)) * w) / 6;
+      const cy = y + ((r + 0.6) * h) / (rows + 0.2);
+      dots.push(<circle key={`${r}-${c}`} cx={cx} cy={cy} r={Math.min(w, h) / 30} fill={WHITE} />);
+    }
+  }
+  return <g>{dots}</g>;
+}
+
+function Stripes({ x, y, w, h, n = 13 }) {
+  return <g>{Array.from({ length: n }, (_, i) => <rect key={i} x={x} y={y + (i * h) / n} width={w} height={h / n + 0.3} fill={i % 2 === 0 ? RED : WHITE} />)}</g>;
+}
+
+function FullFlag({ x = 10, y = 10, w = 228, h = 120 }) {
+  return (
+    <g>
+      <Stripes x={x} y={y} w={w} h={h} />
+      <rect x={x} y={y} width={w * 0.4} height={h * (7 / 13)} fill={BLUE} />
+      <Stars x={x} y={y} w={w * 0.4} h={h * (7 / 13)} />
+    </g>
+  );
+}
+
+// Each folding stage, drawn simply so a 3rd grader can follow along.
+function FoldStage({ stage }) {
+  const views = [
+    <FullFlag />,
+    // 1: folded in half lengthwise — stripes over the stars
+    <g><Stripes x={10} y={40} w={228} h={60} n={7} /></g>,
+    // 2: folded in half again — blue field on the outside
+    <g><rect x={10} y={55} width={92} height={30} fill={BLUE} /><Stars x={10} y={55} w={92} h={30} rows={3} /><Stripes x={102} y={55} w={136} h={30} n={4} /></g>,
+    // 3: first triangle folded at the striped end
+    <g><rect x={10} y={55} width={92} height={30} fill={BLUE} /><Stars x={10} y={55} w={92} h={30} rows={3} /><Stripes x={102} y={55} w={100} h={30} n={4} /><polygon points="202,55 232,85 202,85" fill={RED} stroke={WHITE} strokeWidth="2" /></g>,
+    // 4: keep folding triangles — almost done
+    <g><rect x={30} y={55} width={60} height={30} fill={BLUE} /><Stars x={30} y={55} w={60} h={30} rows={3} /><polygon points="90,85 120,55 150,85" fill={RED} stroke={WHITE} strokeWidth="2" /><polygon points="120,55 150,85 180,55" fill={WHITE} stroke={RED} strokeWidth="2" /></g>,
+    // 5: finished — a triangle with only the stars showing
+    <g><polygon points="74,100 124,30 174,100" fill={BLUE} stroke="#0f1d4a" strokeWidth="3" />{[[124, 55], [108, 75], [140, 75], [92, 92], [124, 90], [156, 92]].map(([cx, cy], i) => <circle key={i} cx={cx} cy={cy} r="4" fill={WHITE} />)}</g>,
+  ];
+  return (
+    <svg viewBox="0 0 248 140" style={{ width: "min(420px, 100%)", display: "block", margin: "0 auto" }} role="img" aria-label={`Flag folding step ${stage}`}>
+      {views[stage]}
+    </svg>
+  );
+}
+
+// ── Station 1: Fold the Flag ─────────────────────────────────────────
+
+const FOLD_STEPS = [
+  "Two people hold the flag flat at waist height",
+  "Fold it in half the long way — the striped half goes over the stars",
+  "Fold it in half the long way again, with the blue field on the outside",
+  "Start at the striped end and fold a corner up into a triangle",
+  "Keep folding triangles all the way down the flag (13 folds in all)",
+  "Tuck the last bit into the pocket — only the stars show",
+];
+const FOLD_WRONG = [
+  "Let one end drag on the ground",
+  "Roll it up like a sleeping bag",
+  "Fold it into a square like a T-shirt",
+  "Start folding at the star end",
+  "Crumple it into a ball",
+  "Stuff it in your pocket",
+  "Hang it over a chair",
+];
+
+function FoldStation({ onDone }) {
+  const [stage, setStage] = useState(0);
+  const [mistakes, setMistakes] = useState(0);
+  const [wrong, setWrong] = useState([]);
+  const options = useMemo(() => {
+    if (stage >= FOLD_STEPS.length - 1) return [];
+    return shuffle([FOLD_STEPS[stage + 1], ...shuffle(FOLD_WRONG).slice(0, 2)]);
+  }, [stage]);
+  const done = stage === FOLD_STEPS.length - 1;
+  const stars = Math.max(1, 3 - mistakes);
+
+  const pick = (opt) => {
+    if (opt === FOLD_STEPS[stage + 1]) { setStage(stage + 1); setWrong([]); }
+    else { setMistakes((m) => m + 1); setWrong((w) => [...w, opt]); }
+  };
+
+  return (
+    <div>
+      <h2>🇺🇸 Fold the Flag</h2>
+      <p className="muted" style={{ marginBottom: 16 }}>It takes two people to fold the flag the right way. Pick the next step each time.</p>
+      <div className="panel" style={{ marginBottom: 16 }}>
+        <FoldStage stage={stage} />
+        <p style={{ textAlign: "center", fontWeight: 800, marginTop: 12 }}>Step {stage + 1}: {FOLD_STEPS[stage]}</p>
+      </div>
+      {!done ? (
+        <>
+          <p style={{ fontWeight: 800, fontSize: 18, marginBottom: 10 }}>What comes next?</p>
+          {options.map((o) => <button key={o} className={`opt ${wrong.includes(o) ? "bad" : ""}`} disabled={wrong.includes(o)} onClick={() => pick(o)}>{o}</button>)}
+          {wrong.length > 0 && <div className="teach">Not quite! A flag is always handled with respect — never let it touch the ground or get crumpled. Try another step.</div>}
+        </>
+      ) : (
+        <div className="panel">
+          <p style={{ fontSize: 20, fontWeight: 900 }}>{"⭐".repeat(stars)} Folded perfectly!</p>
+          <div className="teach">A properly folded flag is a triangle with only the blue field and stars showing. By tradition it takes 13 folds — the same number as the 13 stripes for the original colonies.</div>
+          <button className="btn" style={{ marginTop: 16 }} onClick={() => onDone(stars)}>BACK TO STATIONS</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Station 2: Up and Down the Pole ──────────────────────────────────
+
+const ACTIONS = {
+  raiseFast: { label: "⬆️ Raise it quickly to the top", to: 0, speed: 0.6 },
+  raiseSlow: { label: "🐢 Raise it slowly to the top", to: 0, speed: 2.4 },
+  halfSlow: { label: "⬇️ Lower it slowly to half-staff", to: 0.5, speed: 2.4 },
+  halfFast: { label: "⬆️ Raise it straight to half-staff", to: 0.5, speed: 0.6 },
+  downSlow: { label: "⬇️ Lower it slowly all the way down", to: 1, speed: 2.4 },
+  downFast: { label: "💨 Drop it down fast", to: 1, speed: 0.6 },
+};
+
+const POLE_TASKS = [
+  { title: "Morning Flag Ceremony", start: 1, steps: ["raiseFast"], choices: ["raiseFast", "raiseSlow", "halfFast"],
+    teach: "Raise the flag briskly — quickly and proudly — to the top." },
+  { title: "Evening Flag Ceremony", start: 0, steps: ["downSlow"], choices: ["downSlow", "downFast", "halfSlow"],
+    teach: "Lower the flag slowly and with ceremony. Catch it so it never touches the ground." },
+  { title: "Half-Staff Morning", start: 1, steps: ["raiseFast", "halfSlow"], choices: ["raiseFast", "halfFast", "halfSlow", "raiseSlow"],
+    teach: "To fly a flag at half-staff, first raise it all the way to the top, then lower it to the middle of the pole. Flags fly at half-staff to honor people who have died." },
+  { title: "Half-Staff Evening", start: 0.5, steps: ["raiseFast", "downSlow"], choices: ["downSlow", "raiseFast", "downFast", "halfSlow"],
+    teach: "Before lowering a half-staff flag for the day, raise it to the top first — then lower it slowly." },
+];
+
+function Pole({ pos, speed }) {
+  // pos: 0 = top, 1 = bottom
+  const y = 20 + pos * 170;
+  return (
+    <svg viewBox="0 0 200 240" style={{ width: 200, height: 240, display: "block", margin: "0 auto" }} role="img" aria-label="Flagpole">
+      <rect x="40" y="10" width="6" height="220" fill="#cbd5e1" />
+      <circle cx="43" cy="10" r="7" fill="#facc15" />
+      <rect x="20" y="226" width="46" height="10" rx="3" fill="#64748b" />
+      <g style={{ transform: `translateY(${y}px)`, transition: `transform ${speed}s ease-in-out` }}>
+        <g transform="translate(46 0) scale(0.55)"><FullFlag x={0} y={0} w={190} h={100} /></g>
+      </g>
+    </svg>
+  );
+}
+
+function PoleStation({ onDone }) {
+  const [t, setT] = useState(0);
+  const task = POLE_TASKS[t];
+  const [pos, setPos] = useState(task.start);
+  const [speed, setSpeed] = useState(0);
+  const [stepIdx, setStepIdx] = useState(0);
+  const [wrong, setWrong] = useState([]);
+  const [mistakes, setMistakes] = useState(0);
+  const [taskDone, setTaskDone] = useState(false);
+  const choices = useMemo(() => shuffle(task.choices), [t]);
+
+  const act = (key) => {
+    if (taskDone) return;
+    if (key === task.steps[stepIdx]) {
+      const a = ACTIONS[key];
+      setSpeed(a.speed); setPos(a.to); setWrong([]);
+      if (stepIdx + 1 === task.steps.length) setTaskDone(true);
+      setStepIdx(stepIdx + 1);
+    } else {
+      setWrong((w) => [...w, key]); setMistakes((m) => m + 1);
+    }
+  };
+  const nextTask = () => {
+    const nt = t + 1;
+    setT(nt); setSpeed(0); setPos(POLE_TASKS[nt].start); setStepIdx(0); setWrong([]); setTaskDone(false);
+  };
+  const stars = Math.max(1, 3 - mistakes);
+
+  return (
+    <div>
+      <h2>🏳️ Up and Down the Pole</h2>
+      <p className="muted" style={{ marginBottom: 16 }}>Ceremony {t + 1} of {POLE_TASKS.length}: <b style={{ color: "#e6ebf5" }}>{task.title}</b>{task.steps.length > 1 ? ` — this one takes ${task.steps.length} moves!` : ""}</p>
+      <div className="two">
+        <div className="panel"><Pole pos={pos} speed={speed} /></div>
+        <div>
+          {choices.map((k) => (
+            <button key={k} className={`opt ${wrong.includes(k) ? "bad" : ""}`} disabled={taskDone || wrong.includes(k)} onClick={() => act(k)}>{ACTIONS[k].label}</button>
+          ))}
+          {wrong.length > 0 && !taskDone && <div className="teach">Not quite — think about how we show respect to the flag. Try again!</div>}
+          {taskDone && (
+            <>
+              <div className="teach">✅ {task.teach}</div>
+              {t + 1 < POLE_TASKS.length
+                ? <button className="btn" style={{ marginTop: 16 }} onClick={nextTask}>NEXT CEREMONY →</button>
+                : <button className="btn" style={{ marginTop: 16 }} onClick={() => onDone(stars)}>{"⭐".repeat(stars)} BACK TO STATIONS</button>}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Station 3: Flag Rules (true or false) ────────────────────────────
+
+const RULES = [
+  ["The flag should never touch the ground.", true, "Always keep the flag off the ground — that's why we catch it when we lower it."],
+  ["It's fine to fly the flag at night in the dark.", false, "If the flag flies at night, it needs a light shining on it."],
+  ["The U.S. flag has 50 stars — one for each state.", true, "Hawaii added the 50th star in 1960."],
+  ["The 13 stripes stand for the 13 original colonies.", true, "7 red stripes and 6 white stripes."],
+  ["When the U.S. flag is on a pole with other flags, it goes on the bottom.", false, "The U.S. flag goes on top — the place of honor."],
+  ["You can use the flag as a tablecloth at a picnic.", false, "The flag is never used as decoration or clothing."],
+  ["Scouts in uniform salute the flag during the Pledge of Allegiance.", true, "Out of uniform, place your right hand over your heart."],
+  ["A worn-out flag should be thrown in the trash.", false, "Old flags are retired with respect, usually in a flag retirement ceremony."],
+  ["Flag Day is on June 14.", true, "It celebrates the day the flag was adopted in 1777."],
+  ["The flag should be raised slowly and lowered quickly.", false, "It's the other way around: raise briskly, lower slowly."],
+  ["The blue part of the flag is called the union (or canton).", true, "It holds the 50 white stars."],
+  ["A flag at half-staff means someone important has died.", true, "It's a way to show respect and sadness."],
+];
+
+function RulesStation({ onDone }) {
+  const qs = useMemo(() => shuffle(RULES).slice(0, 8), []);
+  const [i, setI] = useState(0);
+  const [ans, setAns] = useState(null);
+  const [right, setRight] = useState(0);
+  const [stmt, truth, why] = qs[i];
+  const choose = (v) => { if (ans !== null) return; setAns(v); if (v === truth) setRight((r) => r + 1); };
+  const last = i + 1 === qs.length;
+  const stars = right >= 8 ? 3 : right >= 6 ? 2 : 1;
+
+  return (
+    <div>
+      <h2>📜 Flag Rules: True or False?</h2>
+      <p className="muted" style={{ marginBottom: 16 }}>Question {i + 1} of {qs.length} · ✅ {right} right</p>
+      <div className="panel">
+        <p style={{ fontSize: 21, fontWeight: 800, marginBottom: 18 }}>{stmt}</p>
+        <div className="two">
+          {[true, false].map((v) => (
+            <button key={String(v)} className={`opt ${ans !== null ? (v === truth ? "good" : ans === v ? "bad" : "") : ""}`} style={{ textAlign: "center", fontSize: 20 }} disabled={ans !== null} onClick={() => choose(v)}>
+              {v ? "👍 TRUE" : "👎 FALSE"}
+            </button>
+          ))}
+        </div>
+        {ans !== null && (
+          <>
+            <div className="teach">{ans === truth ? "✅ Right! " : "💡 "}{why}</div>
+            {!last
+              ? <button className="btn" style={{ marginTop: 16 }} onClick={() => { setI(i + 1); setAns(null); }}>NEXT →</button>
+              : <button className="btn" style={{ marginTop: 16 }} onClick={() => onDone(stars)}>{"⭐".repeat(stars)} BACK TO STATIONS</button>}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Station 4: U.S. Symbols (matching) ───────────────────────────────
+
+const SYMBOLS = [
+  { id: "eagle", icon: "🦅", name: "Bald Eagle", desc: "Our national bird — strong and free" },
+  { id: "bell", icon: "🔔", name: "Liberty Bell", desc: "A cracked bell in Philadelphia" },
+  { id: "statue", icon: "🗽", name: "Statue of Liberty", desc: "A gift from France holding a torch in New York Harbor" },
+  { id: "whitehouse", icon: "🏛️", name: "White House", desc: "Where the President lives and works" },
+  { id: "rushmore", icon: "⛰️", name: "Mount Rushmore", desc: "Four presidents carved into a mountain in South Dakota" },
+  { id: "unclesam", icon: "🎩", name: "Uncle Sam", desc: "A man with a white beard and a star-covered top hat" },
+  { id: "bison", icon: "🦬", name: "American Bison", desc: "Our national mammal that once roamed the Great Plains" },
+  { id: "anthem", icon: "🎵", name: "The Star-Spangled Banner", desc: "Our national anthem, written by Francis Scott Key" },
+];
+
+function SymbolsStation({ onDone }) {
+  const set = useMemo(() => shuffle(SYMBOLS).slice(0, 6), []);
+  const descs = useMemo(() => shuffle(set), [set]);
+  const [left, setLeft] = useState(null);
+  const [matched, setMatched] = useState([]);
+  const [miss, setMiss] = useState(null);
+  const [mistakes, setMistakes] = useState(0);
+  const done = matched.length === set.length;
+  const stars = Math.max(1, 3 - Math.floor(mistakes / 2));
+
+  const pickRight = (id) => {
+    if (!left || matched.includes(id)) return;
+    if (id === left) { setMatched((m) => [...m, id]); setLeft(null); setMiss(null); }
+    else { setMiss(id); setMistakes((m) => m + 1); }
+  };
+
+  return (
+    <div>
+      <h2>🦅 Match the U.S. Symbols</h2>
+      <p className="muted" style={{ marginBottom: 16 }}>Tap a symbol, then tap what it is. {matched.length} / {set.length} matched</p>
+      <div className="two">
+        <div>
+          {set.map((s) => (
+            <button key={s.id} className={`opt ${matched.includes(s.id) ? "good" : left === s.id ? "sel" : ""}`} disabled={matched.includes(s.id)} onClick={() => { setLeft(s.id); setMiss(null); }}>
+              <span style={{ fontSize: 26, marginRight: 10 }}>{s.icon}</span>{s.name}
+            </button>
+          ))}
+        </div>
+        <div>
+          {descs.map((s) => (
+            <button key={s.id} className={`opt ${matched.includes(s.id) ? "good" : miss === s.id ? "bad" : ""}`} disabled={matched.includes(s.id) || !left} onClick={() => pickRight(s.id)} style={{ fontWeight: 600 }}>
+              {s.desc}
+            </button>
+          ))}
+        </div>
+      </div>
+      {done && (
+        <div className="panel" style={{ marginTop: 8 }}>
+          <p style={{ fontSize: 20, fontWeight: 900 }}>{"⭐".repeat(stars)} All matched!</p>
+          <div className="teach">For Paws for Action, pick one U.S. symbol and make a craft of it — like a paper eagle or a Liberty Bell out of a cup.</div>
+          <button className="btn" style={{ marginTop: 16 }} onClick={() => onDone(stars)}>BACK TO STATIONS</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main ─────────────────────────────────────────────────────────────
+
+const STATIONS = [
+  { id: "fold", icon: "🇺🇸", name: "Fold the Flag", desc: "Put the folding steps in order", C: FoldStation },
+  { id: "pole", icon: "🏳️", name: "Up and Down the Pole", desc: "Raise, lower, and half-staff", C: PoleStation },
+  { id: "rules", icon: "📜", name: "Flag Rules", desc: "True or false flag etiquette", C: RulesStation },
+  { id: "symbols", icon: "🦅", name: "U.S. Symbols", desc: "Match symbols to what they mean", C: SymbolsStation },
+];
+
+function FlagFolder() {
+  const [station, setStation] = useState(null);
+  const [stars, setStars] = useState({});
+  const total = Object.values(stars).reduce((a, b) => a + b, 0);
+  const allDone = STATIONS.every((s) => stars[s.id]);
+  const Active = station && STATIONS.find((s) => s.id === station).C;
+
+  useEffect(() => { window.scrollTo(0, 0); }, [station]);
+
+  return (
+    <div className="wrap">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        {station
+          ? <button className="btn btn-ghost" style={{ padding: "8px 16px", fontSize: 15 }} onClick={() => setStation(null)}>← Stations</button>
+          : <a href="../index.html" style={{ color: "#95a0b8", textDecoration: "none", fontWeight: 700 }}>← Activity Hub</a>}
+        <span className="muted" style={{ fontWeight: 800 }}>⭐ {total} / {STATIONS.length * 3}</span>
+      </div>
+      {Active ? (
+        <Active key={station} onDone={(s) => { setStars((st) => ({ ...st, [station]: Math.max(st[station] || 0, s) })); setStation(null); }} />
+      ) : (
+        <>
+          <div style={{ textAlign: "center", marginBottom: 28 }}>
+            <div style={{ fontSize: 64 }}>🐻🇺🇸</div>
+            <h1 className="pixel" style={{ fontSize: "clamp(18px, 4.5vw, 30px)", color: "#93c5fd", margin: "16px 0", lineHeight: 1.5 }}>FLAG FOLDER</h1>
+            <p className="muted" style={{ fontSize: 18 }}>A Paws for Action adventure — visit all 4 stations!</p>
+          </div>
+          <div className="stations">
+            {STATIONS.map((s) => (
+              <button key={s.id} className="station" onClick={() => setStation(s.id)}>
+                <div style={{ fontSize: 40, marginBottom: 10 }}>{s.icon}</div>
+                <div style={{ fontWeight: 900, fontSize: 19, marginBottom: 4 }}>{s.name}</div>
+                <div className="muted" style={{ marginBottom: 12 }}>{s.desc}</div>
+                <div style={{ fontWeight: 800, color: stars[s.id] ? "#facc15" : "#60a5fa" }}>{stars[s.id] ? "⭐".repeat(stars[s.id]) + " Done!" : "Start →"}</div>
+              </button>
+            ))}
+          </div>
+          {allDone && (
+            <div className="panel" style={{ marginTop: 24, textAlign: "center" }}>
+              <p style={{ fontSize: 22, fontWeight: 900 }}>🏅 Flag Expert! {total} / {STATIONS.length * 3} ⭐</p>
+              <p className="muted" style={{ marginTop: 8 }}>Now practice with a real flag and a buddy at your next den meeting!</p>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<FlagFolder />);
+</script>
+</body>
+</html>
