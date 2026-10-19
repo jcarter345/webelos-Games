@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Oath &amp; Law Builder — Cub Scouts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif; background: #0f0c05; color: #f3eee2; -webkit-font-smoothing: antialiased; }
+  #root { min-height: 100vh; }
+  .pixel { font-family: 'Press Start 2P', monospace; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+  .panel { background: rgba(255,255,255,0.04); border: 2px solid rgba(255,255,255,0.08); border-radius: 16px; padding: clamp(16px, 3vw, 26px); }
+  .btn { display: inline-block; border: none; border-radius: 10px; padding: 14px 28px; font: 800 17px 'Nunito', sans-serif; letter-spacing: 1px; cursor: pointer; background: linear-gradient(135deg, #facc15, #eab308); color: #1a1405; transition: filter .15s, transform .1s; }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:active { transform: scale(0.98); }
+  .btn-ghost { background: transparent; color: #c9bfa5; border: 2px solid rgba(255,255,255,0.18); }
+  .opt { display: block; width: 100%; text-align: left; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 13px 16px; margin-bottom: 10px; color: inherit; font: 700 17px 'Nunito', sans-serif; cursor: pointer; transition: border-color .15s, background .15s; }
+  .opt:hover:not(:disabled) { border-color: #facc15; }
+  .opt.good { border-color: #22c55e; background: rgba(34,197,94,0.18); }
+  .opt.bad { border-color: #ef4444; background: rgba(239,68,68,0.15); }
+  .opt:disabled { cursor: default; }
+  .teach { margin-top: 14px; padding: 14px 16px; border-radius: 12px; background: rgba(59,130,246,0.1); border-left: 4px solid #3b82f6; line-height: 1.6; font-size: 16px; }
+  .muted { color: #a89f88; }
+  h2 { font-size: clamp(20px, 3.5vw, 28px); font-weight: 900; margin-bottom: 8px; }
+  p { line-height: 1.6; }
+  .stations { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .station { text-align: left; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 20px; cursor: pointer; color: inherit; font: inherit; transition: border-color .15s, transform .15s; }
+  .station:hover { border-color: #facc15; transform: translateY(-3px); }
+  .tiles { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .tile { padding: 10px 16px; border-radius: 10px; border: 2px solid rgba(250,204,21,0.45); background: rgba(250,204,21,0.08); color: inherit; font: 800 19px 'Nunito', sans-serif; cursor: pointer; transition: transform .1s, border-color .15s; }
+  .tile:hover { border-color: #facc15; }
+  .tile.shake { animation: shake .35s; border-color: #ef4444; }
+  @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+  .built { min-height: 56px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 12px; border-radius: 12px; border: 2px dashed rgba(255,255,255,0.15); font-size: 21px; font-weight: 800; margin-bottom: 16px; }
+  .word { padding: 4px 10px; background: rgba(34,197,94,0.15); border-radius: 8px; }
+  .bucket { border: 2px dashed rgba(255,255,255,0.18); border-radius: 14px; padding: 14px; min-height: 120px; background: rgba(255,255,255,0.03); cursor: pointer; color: inherit; font: inherit; text-align: left; transition: border-color .15s; }
+  .bucket:hover { border-color: #facc15; }
+  .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 620px) { .three { grid-template-columns: 1fr; } .btn:not(.btn-ghost) { width: 100%; } }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useMemo, useEffect } = React;
+
+// Oath & Law Builder — Bobcat adventure (Bear required, Character & Leadership)
+// Build the Scout Oath word by word, fill in missing words, put the Scout Law
+// in order, sort the three points of the Oath, and match the Law to real life.
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+const OATH_LINES = [
+  "On my honor I will do my best",
+  "to do my duty to God and my country",
+  "and to obey the Scout Law;",
+  "to help other people at all times;",
+  "to keep myself physically strong,",
+  "mentally awake, and morally straight.",
+];
+
+const LAW = ["Trustworthy", "Loyal", "Helpful", "Friendly", "Courteous", "Kind", "Obedient", "Cheerful", "Thrifty", "Brave", "Clean", "Reverent"];
+
+const stars = (mistakes, perStar) => Math.max(1, 3 - Math.floor(mistakes / perStar));
+
+// Tap word tiles in the right order. Only the correct next tile is accepted,
+// so kids never get stuck — mistakes just cost stars.
+function TileBuilder({ words, onComplete, onMistake, big }) {
+  const tiles = useMemo(() => shuffle(words.map((w, i) => ({ w, i }))), [words]);
+  const [placed, setPlaced] = useState([]);
+  const [shake, setShake] = useState(null);
+  const tap = (t) => {
+    if (placed.includes(t.i)) return;
+    if (words[t.i] === words[placed.length]) {
+      // Accept any tile with the right word, in case a word appears twice.
+      const next = [...placed, t.i];
+      setPlaced(next);
+      if (next.length === words.length) onComplete();
+    } else {
+      setShake(t.i); onMistake(); setTimeout(() => setShake(null), 350);
+    }
+  };
+  return (
+    <div>
+      <div className="built" aria-live="polite">
+        {placed.length === 0 && <span className="muted" style={{ fontSize: 16, fontWeight: 600 }}>Tap the {big ? "points" : "words"} in order…</span>}
+        {placed.map((i, k) => <span key={k} className="word">{words[i]}</span>)}
+      </div>
+      <div className="tiles">
+        {tiles.filter((t) => !placed.includes(t.i)).map((t) => (
+          <button key={t.i} className={`tile ${shake === t.i ? "shake" : ""}`} onClick={() => tap(t)}>{t.w}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Station 1: Build the Oath ────────────────────────────────────────
+
+function OathBuilder({ onDone }) {
+  const [line, setLine] = useState(0);
+  const [mistakes, setMistakes] = useState(0);
+  const done = line >= OATH_LINES.length;
+  const words = useMemo(() => (done ? [] : OATH_LINES[line].split(" ")), [line, done]);
+
+  return (
+    <div>
+      <h2>🤞 Build the Scout Oath</h2>
+      <p className="muted" style={{ marginBottom: 14 }}>Line {Math.min(line + 1, OATH_LINES.length)} of {OATH_LINES.length}. Make the Cub Scout sign and say it out loud as you build it!</p>
+      <div className="panel" style={{ marginBottom: 14 }}>
+        <div className="pixel" style={{ fontSize: 10, color: "#facc15", marginBottom: 12 }}>SCOUT OATH</div>
+        {OATH_LINES.slice(0, line).map((l, i) => <p key={i} style={{ fontSize: 19, fontWeight: 800 }}>{l}</p>)}
+        {!done && <p className="muted" style={{ fontSize: 19 }}>…</p>}
+      </div>
+      {!done ? (
+        <div className="panel"><TileBuilder key={line} words={words} onComplete={() => setTimeout(() => setLine((l) => l + 1), 400)} onMistake={() => setMistakes((m) => m + 1)} /></div>
+      ) : (
+        <div className="panel">
+          <p style={{ fontSize: 20, fontWeight: 900 }}>{"⭐".repeat(stars(mistakes, 3))} You built the whole Scout Oath!</p>
+          <div className="teach">"On my honor" means you're giving your word. People can count on a Scout to keep a promise.</div>
+          <button className="btn" style={{ marginTop: 16 }} onClick={() => onDone(stars(mistakes, 3))}>BACK TO STATIONS</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Station 2: Fill the Gaps ─────────────────────────────────────────
+
+const GAPS = [
+  { before: "On my", word: "honor", after: "I will do my best", decoys: ["promise", "word"] },
+  { before: "On my honor I will do my", word: "best", after: "", decoys: ["most", "part"] },
+  { before: "to do my", word: "duty", after: "to God and my country", decoys: ["chores", "job"] },
+  { before: "to do my duty to God and my", word: "country", after: "", decoys: ["family", "den"] },
+  { before: "and to obey the Scout", word: "Law", after: ";", decoys: ["Rules", "Motto"] },
+  { before: "to", word: "help", after: "other people at all times;", decoys: ["thank", "meet"] },
+  { before: "to help other people at all", word: "times", after: ";", decoys: ["meetings", "camps"] },
+  { before: "to keep myself physically", word: "strong", after: ",", decoys: ["fast", "tall"] },
+  { before: "mentally", word: "awake", after: ", and morally straight.", decoys: ["smart", "happy"] },
+  { before: "mentally awake, and morally", word: "straight", after: ".", decoys: ["strong", "good"] },
+];
+
+function FillGaps({ onDone }) {
+  const [i, setI] = useState(0);
+  const [ans, setAns] = useState(null);
+  const [right, setRight] = useState(0);
+  const g = GAPS[i];
+  const opts = useMemo(() => shuffle([g.word, ...g.decoys]), [i]);
+  const last = i + 1 === GAPS.length;
+  const s = right >= 10 ? 3 : right >= 7 ? 2 : 1;
+
+  return (
+    <div>
+      <h2>✏️ Fill the Gaps</h2>
+      <p className="muted" style={{ marginBottom: 14 }}>Blank {i + 1} of {GAPS.length} · ✅ {right}</p>
+      <div className="panel">
+        <p style={{ fontSize: 23, fontWeight: 800, marginBottom: 18, lineHeight: 1.7 }}>
+          {g.before}{" "}
+          <span style={{ display: "inline-block", minWidth: 110, borderBottom: "3px solid #facc15", textAlign: "center", color: ans ? (ans === g.word ? "#4ade80" : "#fca5a5") : "transparent" }}>{ans ? g.word : "____"}</span>
+          {g.after.startsWith(";") || g.after.startsWith(",") || g.after.startsWith(".") ? "" : " "}{g.after}
+        </p>
+        {opts.map((o) => (
+          <button key={o} className={`opt ${ans ? (o === g.word ? "good" : ans === o ? "bad" : "") : ""}`} disabled={!!ans} onClick={() => { setAns(o); if (o === g.word) setRight((r) => r + 1); }}>{o}</button>
+        ))}
+        {ans && (last
+          ? <button className="btn" style={{ marginTop: 8 }} onClick={() => onDone(s)}>{"⭐".repeat(s)} BACK TO STATIONS</button>
+          : <button className="btn" style={{ marginTop: 8 }} onClick={() => { setI(i + 1); setAns(null); }}>NEXT →</button>)}
+      </div>
+    </div>
+  );
+}
+
+// ── Station 3: Scout Law in Order ────────────────────────────────────
+
+function LawOrder({ onDone }) {
+  const [mistakes, setMistakes] = useState(0);
+  const [done, setDone] = useState(false);
+  return (
+    <div>
+      <h2>📜 The Scout Law in Order</h2>
+      <p className="muted" style={{ marginBottom: 14 }}>"A Scout is…" — tap all 12 points in order. Tip: the first four are <b>T-L-H-F</b>, like "The Little Happy Fox."</p>
+      <div className="panel">
+        <p style={{ fontSize: 20, fontWeight: 900, marginBottom: 10 }}>A Scout is…</p>
+        <TileBuilder words={LAW} big onComplete={() => setDone(true)} onMistake={() => setMistakes((m) => m + 1)} />
+      </div>
+      {done && (
+        <div className="panel" style={{ marginTop: 14 }}>
+          <p style={{ fontSize: 20, fontWeight: 900 }}>{"⭐".repeat(stars(mistakes, 3))} All 12 points!</p>
+          <div className="teach">Say it out loud three times fast: "A Scout is trustworthy, loyal, helpful, friendly, courteous, kind, obedient, cheerful, thrifty, brave, clean, and reverent."</div>
+          <button className="btn" style={{ marginTop: 16 }} onClick={() => onDone(stars(mistakes, 3))}>BACK TO STATIONS</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Station 4: Three Points of the Oath ──────────────────────────────
+
+const BUCKETS = [
+  { id: "god", name: "Duty to God and Country", icon: "🙏🇺🇸" },
+  { id: "others", name: "Duty to Others", icon: "🤝" },
+  { id: "self", name: "Duty to Self", icon: "💪" },
+];
+const PHRASES = [
+  { text: "do my duty to God", b: "god" },
+  { text: "and my country", b: "god" },
+  { text: "and to obey the Scout Law", b: "god" },
+  { text: "to help other people at all times", b: "others" },
+  { text: "physically strong", b: "self" },
+  { text: "mentally awake", b: "self" },
+  { text: "morally straight", b: "self" },
+];
+
+function ThreePoints({ onDone }) {
+  const order = useMemo(() => shuffle(PHRASES), []);
+  const [i, setI] = useState(0);
+  const [placed, setPlaced] = useState({ god: [], others: [], self: [] });
+  const [wrong, setWrong] = useState(null);
+  const [mistakes, setMistakes] = useState(0);
+  const done = i >= order.length;
+  const cur = order[i];
+
+  const drop = (b) => {
+    if (done) return;
+    if (cur.b === b) { setPlaced((p) => ({ ...p, [b]: [...p[b], cur.text] })); setI(i + 1); setWrong(null); }
+    else { setWrong(b); setMistakes((m) => m + 1); }
+  };
+
+  return (
+    <div>
+      <h2>🧩 The Three Points of the Oath</h2>
+      <p className="muted" style={{ marginBottom: 14 }}>The Scout Oath has three parts. Tap the box where each phrase belongs.</p>
+      <div className="panel" style={{ textAlign: "center", marginBottom: 14 }}>
+        {!done
+          ? <><div className="pixel" style={{ fontSize: 10, color: "#facc15", marginBottom: 10 }}>PHRASE {i + 1} OF {order.length}</div><p style={{ fontSize: 24, fontWeight: 900 }}>"{cur.text}"</p></>
+          : <p style={{ fontSize: 20, fontWeight: 900 }}>{"⭐".repeat(stars(mistakes, 2))} All sorted!</p>}
+      </div>
+      <div className="three">
+        {BUCKETS.map((b) => (
+          <button key={b.id} className="bucket" onClick={() => drop(b.id)} style={{ borderColor: wrong === b.id ? "#ef4444" : undefined }} disabled={done}>
+            <div style={{ fontSize: 28 }}>{b.icon}</div>
+            <div style={{ fontWeight: 900, fontSize: 17, marginBottom: 8 }}>{b.name}</div>
+            {placed[b.id].map((t) => <div key={t} style={{ fontSize: 15, padding: "4px 8px", marginBottom: 4, borderRadius: 8, background: "rgba(34,197,94,0.15)" }}>{t}</div>)}
+          </button>
+        ))}
+      </div>
+      {wrong && !done && <div className="teach">Hmm, not that one. Ask yourself: is this about God and country, about helping others, or about taking care of yourself?</div>}
+      {done && <><div className="teach">Duty to God and country, duty to others, and duty to self — that's the whole Scout Oath in three parts!</div><button className="btn" style={{ marginTop: 16 }} onClick={() => onDone(stars(mistakes, 2))}>BACK TO STATIONS</button></>}
+    </div>
+  );
+}
+
+// ── Station 5: Law in Real Life ──────────────────────────────────────
+
+const SCENES = [
+  ["You find a wallet on the playground and turn it in to the office.", "Trustworthy"],
+  ["Your friend is having a hard day, so you stick by them at recess.", "Loyal"],
+  ["You carry groceries in from the car without being asked.", "Helpful"],
+  ["A new kid joins your den, and you invite them to play.", "Friendly"],
+  ["You say \"please\" and \"thank you\" to the waiter at dinner.", "Courteous"],
+  ["You gently pet a scared puppy and give it water.", "Kind"],
+  ["Your den leader says it's clean-up time, and you start right away.", "Obedient"],
+  ["Your team loses the game, but you smile and say \"good game.\"", "Cheerful"],
+  ["You save your allowance instead of spending it all on candy.", "Thrifty"],
+  ["You tell a kid to stop teasing someone, even though you're nervous.", "Brave"],
+  ["You wash up and put your dirty clothes in the hamper.", "Clean"],
+  ["You stay quiet and respectful while someone else prays.", "Reverent"],
+];
+
+function LawInLife({ onDone }) {
+  const qs = useMemo(() => shuffle(SCENES).slice(0, 8).map(([s, a]) => ({ s, a, opts: shuffle([a, ...shuffle(LAW.filter((l) => l !== a)).slice(0, 3)]) })), []);
+  const [i, setI] = useState(0);
+  const [ans, setAns] = useState(null);
+  const [right, setRight] = useState(0);
+  const q = qs[i];
+  const last = i + 1 === qs.length;
+  const s = right >= 8 ? 3 : right >= 6 ? 2 : 1;
+
+  return (
+    <div>
+      <h2>🌟 The Law in Real Life</h2>
+      <p className="muted" style={{ marginBottom: 14 }}>Story {i + 1} of {qs.length} · Which point of the Scout Law is this Scout living? ✅ {right}</p>
+      <div className="panel">
+        <p style={{ fontSize: 21, fontWeight: 800, marginBottom: 16 }}>{q.s}</p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {q.opts.map((o) => (
+            <button key={o} className={`opt ${ans ? (o === q.a ? "good" : ans === o ? "bad" : "") : ""}`} style={{ textAlign: "center", marginBottom: 0 }} disabled={!!ans} onClick={() => { setAns(o); if (o === q.a) setRight((r) => r + 1); }}>{o}</button>
+          ))}
+        </div>
+        {ans && <div className="teach">{ans === q.a ? "✅ Yes! " : "💡 "}A Scout who does this is <b>{q.a.toLowerCase()}</b>. (Lots of good deeds show more than one point!)</div>}
+        {ans && (last
+          ? <button className="btn" style={{ marginTop: 14 }} onClick={() => onDone(s)}>{"⭐".repeat(s)} BACK TO STATIONS</button>
+          : <button className="btn" style={{ marginTop: 14 }} onClick={() => { setI(i + 1); setAns(null); }}>NEXT →</button>)}
+      </div>
+    </div>
+  );
+}
+
+// ── Main ─────────────────────────────────────────────────────────────
+
+const STATIONS = [
+  { id: "oath", icon: "🤞", name: "Build the Oath", desc: "Put the Scout Oath together word by word", C: OathBuilder },
+  { id: "gaps", icon: "✏️", name: "Fill the Gaps", desc: "Pick the missing words", C: FillGaps },
+  { id: "law", icon: "📜", name: "Law in Order", desc: "Tap all 12 points in order", C: LawOrder },
+  { id: "points", icon: "🧩", name: "Three Points", desc: "Sort the three parts of the Oath", C: ThreePoints },
+  { id: "life", icon: "🌟", name: "Law in Real Life", desc: "Match good deeds to the Scout Law", C: LawInLife },
+];
+
+function OathLawBuilder() {
+  const [station, setStation] = useState(null);
+  const [got, setGot] = useState({});
+  const total = Object.values(got).reduce((a, b) => a + b, 0);
+  const Active = station && STATIONS.find((s) => s.id === station).C;
+  useEffect(() => { window.scrollTo(0, 0); }, [station]);
+
+  return (
+    <div className="wrap">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        {station
+          ? <button className="btn btn-ghost" style={{ padding: "8px 16px", fontSize: 15 }} onClick={() => setStation(null)}>← Stations</button>
+          : <a href="../index.html" style={{ color: "#a89f88", textDecoration: "none", fontWeight: 700 }}>← Activity Hub</a>}
+        <span className="muted" style={{ fontWeight: 800 }}>⭐ {total} / {STATIONS.length * 3}</span>
+      </div>
+      {Active ? (
+        <Active key={station} onDone={(s) => { setGot((g) => ({ ...g, [station]: Math.max(g[station] || 0, s) })); setStation(null); }} />
+      ) : (
+        <>
+          <div style={{ textAlign: "center", marginBottom: 28 }}>
+            <div style={{ fontSize: 64 }}>🐾📜</div>
+            <h1 className="pixel" style={{ fontSize: "clamp(16px, 4.2vw, 28px)", color: "#facc15", margin: "16px 0", lineHeight: 1.6 }}>OATH &amp; LAW<br />BUILDER</h1>
+            <p className="muted" style={{ fontSize: 18 }}>A Bobcat adventure — learn the Scout Oath and Scout Law by heart.</p>
+          </div>
+          <div className="stations">
+            {STATIONS.map((s) => (
+              <button key={s.id} className="station" onClick={() => setStation(s.id)}>
+                <div style={{ fontSize: 40, marginBottom: 10 }}>{s.icon}</div>
+                <div style={{ fontWeight: 900, fontSize: 19, marginBottom: 4 }}>{s.name}</div>
+                <div className="muted" style={{ marginBottom: 12 }}>{s.desc}</div>
+                <div style={{ fontWeight: 800, color: got[s.id] ? "#facc15" : "#fde68a" }}>{got[s.id] ? "⭐".repeat(got[s.id]) + " Done!" : "Start →"}</div>
+              </button>
+            ))}
+          </div>
+          {STATIONS.every((s) => got[s.id]) && (
+            <div className="panel" style={{ marginTop: 24, textAlign: "center" }}>
+              <p style={{ fontSize: 22, fontWeight: 900 }}>🏅 Oath &amp; Law Champion! {total} / {STATIONS.length * 3} ⭐</p>
+              <p className="muted" style={{ marginTop: 8 }}>Ready for the real test? Stand up, make the Cub Scout sign, and say them for your den!</p>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<OathLawBuilder />);
+</script>
+</body>
+</html>

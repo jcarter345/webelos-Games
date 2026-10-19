@@ -126,7 +126,7 @@ var JEOPARDY_BEAR_FORENSICS = [
   },
   {
     name: "FINGERPRINTS",
-    emoji: "🫆",
+    emoji: "👆",
     color: "#1a0f00",
     accent: "#f59e0b",
     questions: [

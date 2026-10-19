@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Giggle Generator — Cub Scouts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif; background: #14060f; color: #f7e9f1; -webkit-font-smoothing: antialiased; }
+  #root { min-height: 100vh; }
+  .pixel { font-family: 'Press Start 2P', monospace; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+  .panel { background: rgba(255,255,255,0.04); border: 2px solid rgba(255,255,255,0.08); border-radius: 16px; padding: clamp(16px, 3vw, 26px); }
+  .btn { display: inline-block; border: none; border-radius: 12px; padding: 14px 26px; font: 800 18px 'Nunito', sans-serif; letter-spacing: 1px; cursor: pointer; background: linear-gradient(135deg, #f472b6, #db2777); color: #fff; transition: filter .15s, transform .1s; }
+  .btn:hover { filter: brightness(1.1); }
+  .btn:active { transform: scale(0.97); }
+  .btn-ghost { background: transparent; color: #d6b8c8; border: 2px solid rgba(255,255,255,0.2); }
+  .btn-green { background: linear-gradient(135deg, #4ade80, #16a34a); color: #052e14; }
+  .muted { color: #b495a6; }
+  .tabs { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
+  .tab { padding: 10px 16px; border-radius: 999px; border: 2px solid rgba(255,255,255,0.15); background: transparent; color: #e7d3de; font: 800 16px 'Nunito', sans-serif; cursor: pointer; }
+  .tab.on { border-color: #f472b6; background: rgba(244,114,182,0.18); color: #fbcfe8; }
+  .card { min-height: 280px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 18px; background: linear-gradient(160deg, rgba(244,114,182,0.12), rgba(167,139,250,0.08)); border: 3px solid rgba(244,114,182,0.35); border-radius: 22px; padding: clamp(22px, 5vw, 40px); }
+  .big { font-size: clamp(22px, 4.5vw, 32px); font-weight: 900; line-height: 1.35; }
+  .reveal { font-size: clamp(20px, 4vw, 28px); font-weight: 800; color: #fde68a; line-height: 1.4; }
+  .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 18px; }
+  .timer { font-family: 'Press Start 2P', monospace; font-size: clamp(28px, 7vw, 44px); }
+  @keyframes pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  .pop { animation: pop .25s ease-out; }
+  @media (max-width: 480px) { .row .btn { flex: 1; } }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// Giggle Generator — Roaring Laughter adventure (Bear elective)
+// A den-meeting tool: jokes, tongue twisters, charades with a timer, riddles.
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+const JOKES = [
+  ["Why did the bear cross the road?", "To get to the bear-y bush on the other side!"],
+  ["What do you call a bear with no teeth?", "A gummy bear!"],
+  ["Why don't bears wear socks?", "Because they like to walk around in their bear feet!"],
+  ["What's a bear's favorite drink?", "Koka-Koala!"],
+  ["Why do bears have hairy coats?", "Fur protection!"],
+  ["What do you call a sleeping dinosaur?", "A dino-snore!"],
+  ["Why are fish so smart?", "Because they live in schools!"],
+  ["What did the ocean say to the beach?", "Nothing, it just waved!"],
+  ["Why did the scarecrow win an award?", "Because he was outstanding in his field!"],
+  ["What do you call cheese that isn't yours?", "Nacho cheese!"],
+  ["Why can't a bicycle stand up by itself?", "Because it's two-tired!"],
+  ["What do you call a camper with no tent?", "In-tents-ly cold!"],
+  ["Why did the cookie go to the doctor?", "Because it felt crummy!"],
+  ["What do you call a fake noodle?", "An impasta!"],
+  ["Why did the tree go to the dentist?", "To get a root canal!"],
+  ["What do you call a deer with no eyes?", "No idea! (No-eye deer!)"],
+  ["Why do cows wear bells?", "Because their horns don't work!"],
+  ["What kind of tree fits in your hand?", "A palm tree!"],
+  ["How do you make a tissue dance?", "Put a little boogie in it!"],
+  ["Why did the math book look sad?", "It had too many problems!"],
+  ["What do you call a pig that does karate?", "A pork chop!"],
+  ["Why was the broom late?", "It over-swept!"],
+  ["What's a campfire's favorite music?", "Rock and roll — s'more please!"],
+  ["Knock knock. Who's there? Lettuce.", "Lettuce who? Lettuce in, it's cold out here!"],
+  ["Knock knock. Who's there? Boo.", "Boo who? Don't cry, it's just a joke!"],
+  ["Knock knock. Who's there? Owl.", "Owl who? Owl be seeing you at the next den meeting!"],
+];
+
+const TWISTERS = [
+  "Peter Piper picked a peck of pickled peppers.",
+  "She sells seashells by the seashore.",
+  "How much wood would a woodchuck chuck if a woodchuck could chuck wood?",
+  "Fuzzy Wuzzy was a bear. Fuzzy Wuzzy had no hair.",
+  "Red lorry, yellow lorry.",
+  "Toy boat. Toy boat. Toy boat.",
+  "Six slippery snails slid slowly seaward.",
+  "Betty Botter bought some butter, but she said the butter's bitter.",
+  "Unique New York, unique New York.",
+  "Big bears bounce big blue balls.",
+  "Brave Bears build big brown boats.",
+  "Silly Sally swiftly shooed seven silly sheep.",
+  "Fresh French fried fish.",
+  "Black bug bit a big black bear.",
+  "Scouts scout scary scarecrows.",
+  "Crisp crusts crackle crunchily.",
+];
+
+const CHARADES = {
+  "🐾 Animals": ["Bear", "Monkey", "Elephant", "Kangaroo", "Penguin", "Snake", "Frog", "Chicken", "Crab", "Owl", "Dog wagging its tail", "Cat chasing a laser"],
+  "🏕️ Scouting": ["Setting up a tent", "Roasting a marshmallow", "Paddling a canoe", "Hiking up a mountain", "Raising the flag", "Tying a knot", "Fishing", "Building a campfire", "Pinewood Derby race", "Looking through binoculars"],
+  "🏃 Actions": ["Brushing your teeth", "Riding a bike", "Swimming", "Baking a cake", "Walking a dog", "Jumping rope", "Playing guitar", "Flying a kite", "Mowing the lawn", "Eating spaghetti"],
+  "🦸 Silly": ["Superhero flying", "Robot dancing", "Zombie walking", "Astronaut on the moon", "Pirate looking for treasure", "Chef in a hurry", "Ballerina hippo", "Wizard casting a spell"],
+};
+
+const RIDDLES = [
+  ["What has to be broken before you can use it?", "An egg!"],
+  ["What gets wetter the more it dries?", "A towel!"],
+  ["What has keys but can't open locks?", "A piano!"],
+  ["What has legs but can't walk?", "A table!"],
+  ["What goes up but never comes down?", "Your age!"],
+  ["What has a neck but no head?", "A bottle!"],
+  ["What can you catch but not throw?", "A cold!"],
+  ["What has many teeth but can't bite?", "A comb!"],
+  ["The more you take, the more you leave behind. What are they?", "Footsteps!"],
+  ["What runs but never walks?", "A river!"],
+  ["What has one eye but can't see?", "A needle!"],
+  ["What can travel around the world while staying in a corner?", "A stamp!"],
+  ["What word is spelled wrong in every dictionary?", "\"Wrong\"!"],
+  ["What belongs to you, but other people use it more than you?", "Your name!"],
+  ["I'm tall when I'm young and short when I'm old. What am I?", "A candle!"],
+  ["What has hands but can't clap?", "A clock!"],
+  ["What has a bark but no bite?", "A tree!"],
+  ["What can fill a room but takes up no space?", "Light!"],
+  ["What has a head and a tail but no body?", "A coin!"],
+  ["What month has 28 days?", "All of them!"],
+];
+
+// A deck deals every card once (shuffled) before repeating.
+function useDeck(items) {
+  const [deck, setDeck] = useState(() => shuffle(items));
+  const [i, setI] = useState(0);
+  const next = () => {
+    if (i + 1 >= deck.length) { setDeck(shuffle(items)); setI(0); } else setI(i + 1);
+  };
+  return [deck[i], next, i + 1, deck.length];
+}
+
+function useCountdown() {
+  const [left, setLeft] = useState(null);
+  const ref = useRef(null);
+  const start = (sec) => {
+    clearInterval(ref.current);
+    setLeft(sec);
+    ref.current = setInterval(() => setLeft((l) => {
+      if (l <= 1) { clearInterval(ref.current); return 0; }
+      return l - 1;
+    }), 1000);
+  };
+  const stop = () => { clearInterval(ref.current); setLeft(null); };
+  useEffect(() => () => clearInterval(ref.current), []);
+  return [left, start, stop];
+}
+
+function QA({ items, label, emoji, revealLabel }) {
+  const [card, next, n, total] = useDeck(items);
+  const [shown, setShown] = useState(false);
+  const go = () => { setShown(false); next(); };
+  return (
+    <div>
+      <div className="card pop" key={n}>
+        <div style={{ fontSize: 48 }}>{emoji}</div>
+        <div className="big">{card[0]}</div>
+        {shown ? <div className="reveal pop">{card[1]}</div> : <button className="btn btn-ghost" onClick={() => setShown(true)}>{revealLabel}</button>}
+      </div>
+      <div className="row"><button className="btn" onClick={go}>NEXT {label} →</button></div>
+      <p className="muted" style={{ textAlign: "center", marginTop: 12 }}>{n} of {total}</p>
+    </div>
+  );
+}
+
+function Twisters() {
+  const [card, next, n, total] = useDeck(TWISTERS);
+  const [left, start, stop] = useCountdown();
+  const [count, setCount] = useState(0);
+  const go = () => { stop(); setCount(0); next(); };
+  return (
+    <div>
+      <div className="card pop" key={n}>
+        <div style={{ fontSize: 48 }}>👅</div>
+        <div className="big">{card}</div>
+        {left === null && <p className="muted" style={{ fontSize: 17 }}>Challenge: how many times can you say it in 15 seconds — without messing up?</p>}
+        {left !== null && (
+          <>
+            <div className="timer" style={{ color: left === 0 ? "#fca5a5" : "#fde68a" }}>{left === 0 ? "TIME!" : left}</div>
+            <div style={{ fontSize: 22, fontWeight: 900 }}>Said it {count} time{count === 1 ? "" : "s"}!</div>
+            {left > 0 && <button className="btn btn-green" style={{ fontSize: 22, padding: "16px 34px" }} onClick={() => setCount((c) => c + 1)}>+1 SAID IT!</button>}
+          </>
+        )}
+      </div>
+      <div className="row">
+        {left === null || left === 0 ? <button className="btn btn-ghost" onClick={() => { setCount(0); start(15); }}>⏱️ {left === 0 ? "TRY AGAIN" : "START 15 SEC"}</button> : null}
+        <button className="btn" onClick={go}>NEXT TWISTER →</button>
+      </div>
+      <p className="muted" style={{ textAlign: "center", marginTop: 12 }}>{n} of {total}</p>
+    </div>
+  );
+}
+
+function Charades() {
+  const cats = Object.keys(CHARADES);
+  const [cat, setCat] = useState(cats[0]);
+  const [deck, setDeck] = useState(() => shuffle(CHARADES[cats[0]]));
+  const [i, setI] = useState(0);
+  const [hidden, setHidden] = useState(true);
+  const [score, setScore] = useState({ got: 0, skip: 0 });
+  const [left, start, stop] = useCountdown();
+
+  const pickCat = (c) => { setCat(c); setDeck(shuffle(CHARADES[c])); setI(0); setHidden(true); stop(); };
+  const next = (result) => {
+    if (result) setScore((s) => ({ ...s, [result]: s[result] + 1 }));
+    setHidden(true); stop();
+    if (i + 1 >= deck.length) { setDeck(shuffle(CHARADES[cat])); setI(0); } else setI(i + 1);
+  };
+
+  return (
+    <div>
+      <div className="tabs" style={{ marginBottom: 14 }}>
+        {cats.map((c) => <button key={c} className={`tab ${cat === c ? "on" : ""}`} style={{ fontSize: 14 }} onClick={() => pickCat(c)}>{c}</button>)}
+      </div>
+      <div className="card pop" key={`${cat}-${i}`}>
+        <div style={{ fontSize: 48 }}>🎭</div>
+        {hidden ? (
+          <>
+            <div className="big">Actor only — don't let anyone peek! 👀</div>
+            <button className="btn" onClick={() => setHidden(false)}>I'M THE ACTOR — SHOW ME</button>
+          </>
+        ) : (
+          <>
+            <div className="muted" style={{ fontWeight: 800 }}>Act it out — no talking!</div>
+            <div className="big" style={{ fontSize: "clamp(28px, 6vw, 40px)" }}>{deck[i]}</div>
+            {left === null
+              ? <button className="btn btn-ghost" onClick={() => start(60)}>⏱️ START 60 SEC</button>
+              : <div className="timer" style={{ color: left === 0 ? "#fca5a5" : left <= 10 ? "#fdba74" : "#fde68a" }}>{left === 0 ? "TIME!" : left}</div>}
+          </>
+        )}
+      </div>
+      <div className="row">
+        <button className="btn btn-green" onClick={() => next("got")}>✅ THEY GOT IT!</button>
+        <button className="btn btn-ghost" onClick={() => next("skip")}>⏭️ SKIP</button>
+      </div>
+      <p className="muted" style={{ textAlign: "center", marginTop: 12, fontWeight: 800 }}>✅ {score.got} guessed · ⏭️ {score.skip} skipped</p>
+      <details className="panel" style={{ marginTop: 16 }}>
+        <summary style={{ fontWeight: 800, cursor: "pointer" }}>Charades signals</summary>
+        <ul style={{ margin: "10px 0 0 20px", lineHeight: 1.9 }}>
+          <li>Hold up fingers = how many words</li>
+          <li>Tap fingers on your arm = how many syllables</li>
+          <li>Cup your ear = "sounds like"</li>
+          <li>Crank an old movie camera = a movie</li>
+          <li>Open your hands like a book = a book</li>
+        </ul>
+      </details>
+    </div>
+  );
+}
+
+const MODES = [
+  { id: "jokes", label: "😂 Jokes" },
+  { id: "twisters", label: "👅 Tongue Twisters" },
+  { id: "charades", label: "🎭 Charades" },
+  { id: "riddles", label: "❓ Riddles" },
+];
+
+function GiggleGenerator() {
+  const [mode, setMode] = useState("jokes");
+  return (
+    <div className="wrap">
+      <div style={{ marginBottom: 16 }}>
+        <a href="../index.html" style={{ color: "#b495a6", textDecoration: "none", fontWeight: 700 }}>← Activity Hub</a>
+      </div>
+      <div style={{ textAlign: "center", marginBottom: 20 }}>
+        <div style={{ fontSize: 56 }}>🐻😂</div>
+        <h1 className="pixel" style={{ fontSize: "clamp(16px, 4.2vw, 28px)", color: "#f9a8d4", margin: "14px 0 10px", lineHeight: 1.6 }}>GIGGLE<br />GENERATOR</h1>
+        <p className="muted" style={{ fontSize: 17 }}>A Roaring Laughter adventure — pass the giggles around your den!</p>
+      </div>
+      <div className="tabs" role="tablist">
+        {MODES.map((m) => <button key={m.id} role="tab" aria-selected={mode === m.id} className={`tab ${mode === m.id ? "on" : ""}`} onClick={() => setMode(m.id)}>{m.label}</button>)}
+      </div>
+      {mode === "jokes" && <QA items={JOKES} label="JOKE" emoji="😂" revealLabel="🥁 PUNCH LINE" />}
+      {mode === "twisters" && <Twisters />}
+      {mode === "charades" && <Charades />}
+      {mode === "riddles" && <QA items={RIDDLES} label="RIDDLE" emoji="❓" revealLabel="🤔 SHOW ANSWER" />}
+      <p className="muted" style={{ textAlign: "center", marginTop: 28, fontSize: 15 }}>Remember: a good joke makes <b>everyone</b> laugh — never laugh at someone, laugh with them!</p>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<GiggleGenerator />);
+</script>
+</body>
+</html>

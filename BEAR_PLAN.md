@@ -8,7 +8,12 @@
 - ✅ **Decisions:** Standing Tall and Fellowship are covered **without** the parent/guardian
   requirements (video, family device policy, at-home faith items). Camping and Water Safety show for both ranks.
   All electives covered. Repo name stays `webelos-Games` for now.
-- ⏭️ **Phase 3 (next):** Bear Trail, Flag Folder, Forensics Lab, Oath & Law Builder, Giggle Generator.
+- ✅ **Phase 3 shipped:** five Bear games in `games/`, linked from a new Bear Adventures section on the landing page:
+  - `bear-trail.html` — Bear Trail (Bear Habitat)
+  - `bear-flag.html` — Flag Folder (Paws for Action)
+  - `bear-forensics.html` — Forensics Lab (Forensics)
+  - `bear-oath-law.html` — Oath & Law Builder (Bobcat)
+  - `bear-giggles.html` — Giggle Generator (Roaring Laughter)
 
 Plan for adding Bear (3rd grade) content to the Cub Scouts Activity Hub,
 reusing the existing Jeopardy engine and Walkabout game where possible.
